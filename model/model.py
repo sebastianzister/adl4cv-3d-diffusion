@@ -20,3 +20,13 @@ class MnistModel(BaseModel):
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
+
+class PointDetailModel(BaseModel):
+    def __init__(self, num_points = 2048):
+        super().__init__()
+        self.fc1 = nn.Linear(num_points*3, num_points*3)
+
+    def forward(self, x):
+        B, P, C = x.shape
+        x = self.fc1(x.flatten(start_dim=-2))
+        return x.reshape(B, P, C)

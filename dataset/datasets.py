@@ -29,7 +29,4 @@ class PointDetailDataset(Dataset):
         if self.transform:
             data = self.transform(data)
 
-        print(data.shape)
-        print(y.shape)
-        print(x.shape)
         return (x, y)

@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torchvision.utils import make_grid
 from base import BaseTrainer
-from utils import inf_loop, MetricTracker
+from utils import inf_loop, MetricTracker, visualize_batch, visualize_multiple_point_clouds
 
 
 class Trainer(BaseTrainer):
@@ -58,15 +58,18 @@ class Trainer(BaseTrainer):
                     epoch,
                     self._progress(batch_idx),
                     loss.item()))
-                self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+                #self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
 
             if batch_idx == self.len_epoch:
                 break
         log = self.train_metrics.result()
 
-        if self.do_validation:
+        if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
             val_log = self._valid_epoch(epoch)
             log.update(**{'val_'+k : v for k, v in val_log.items()})
+
+        if self.config['trainer']['visualize_per_epochs'] is not None and epoch % self.config['trainer']['visualize_per_epochs'] == 0:
+            self._visualize_val_batch(epoch)
 
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
@@ -86,18 +89,36 @@ class Trainer(BaseTrainer):
                 data, target = data.to(self.device), target.to(self.device)
 
                 output = self.model(data)
+                
+                visualize_multiple_point_clouds([data[0].cpu(), output[0].cpu(), target[0].cpu()], ['Input', 'Output', 'Target'])
+
                 loss = self.criterion(output, target)
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('loss', loss.item())
                 for met in self.metric_ftns:
                     self.valid_metrics.update(met.__name__, met(output, target))
-                self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+                #self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
 
         # add histogram of model parameters to the tensorboard
         for name, p in self.model.named_parameters():
             self.writer.add_histogram(name, p, bins='auto')
         return self.valid_metrics.result()
+    
+    def _visualize_val_batch(self, epoch):
+        self.model.eval()
+        with torch.no_grad():
+            batch_idx, (data, target) = next(enumerate(self.valid_data_loader))
+            data, target = data.to(self.device), target.to(self.device)
+            
+            output = self.model(data, visualize_latent=True)
+            loss = self.criterion(output, target)
+            
+            
+            
+            self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'visualize')
+            self.writer.add_image('target result', visualize_batch(data.cpu(), output.cpu(), target.cpu()))
+
 
     def _progress(self, batch_idx):
         base = '[{}/{} ({:.0f}%)]'

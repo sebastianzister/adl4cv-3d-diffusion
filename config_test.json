@@ -3,7 +3,7 @@
     "n_gpu": 1,
 
     "arch": {
-        "type": "SparseDetailModel",
+        "type": "PVCNN2",
         "args": {}
     },
     "data_loader": {
@@ -35,7 +35,7 @@
         }
     },
     "trainer": {
-        "epochs": 200,
+        "epochs": 10000,
 
         "save_dir": "saved/",
         "save_period": 100,
@@ -44,8 +44,8 @@
         "monitor": "min val_loss",
         "early_stop": 0,
         "do_validation": false,
-        "val_per_epochs" : 10,
-        "visualize_per_epochs" : 50,    
+        "val_per_epochs" : 25,
+        "visualize_per_epochs" : 400,    
 
         "tensorboard": true
     }

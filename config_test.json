@@ -3,7 +3,7 @@
     "n_gpu": 1,
 
     "arch": {
-        "type": "PVCNN2",
+        "type": "SimpleModel",
         "args": {}
     },
     "data_loader": {
@@ -24,7 +24,7 @@
             "amsgrad": true
         }
     },
-    "loss": "cd_loss",
+    "loss": "mse_loss",
     "metrics": [
     ],
     "lr_scheduler": {
@@ -35,10 +35,10 @@
         }
     },
     "trainer": {
-        "epochs": 10000,
+        "epochs": 10,
 
         "save_dir": "saved/",
-        "save_period": 100,
+        "save_period": 10000000,
         "verbosity": 2,
         
         "monitor": "min val_loss",

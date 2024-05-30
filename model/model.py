@@ -9,7 +9,7 @@ GlobalTags.legacy_layer_base(True)
 from convpoint.nn.conv import PtConv
 from convpoint.nn.utils import apply_bn
 
-import MinkowskiEngine as ME
+#import MinkowskiEngine as ME
 
 from model.pvcnn_generation import *
 
@@ -272,6 +272,7 @@ class ConvPointDetailModel(BaseModel):
         else:
             return xout + input_pts
 
+'''
 class SparseDetailModel(BaseModel, ME.MinkowskiNetwork):
     ENC_CHANNELS = [16, 32, 64, 128, 256, 512, 1024]
     DEC_CHANNELS = [16, 32, 64, 128, 256, 512, 1024]
@@ -636,6 +637,8 @@ class SparseDetailModel(BaseModel, ME.MinkowskiNetwork):
         out = dec_s1.C[:, 1:4].unsqueeze(0)*0.01
         print(out)
         return out
+
+'''
 
 class PVCNN2Base(BaseModel):
 

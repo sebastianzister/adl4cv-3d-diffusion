@@ -35,17 +35,17 @@
         }
     },
     "trainer": {
-        "epochs": 10,
+        "epochs": 20,
 
         "save_dir": "saved/",
-        "save_period": 10000000,
+        "save_period": 10,
         "verbosity": 2,
         
         "monitor": "min val_loss",
         "early_stop": 0,
         "do_validation": false,
         "val_per_epochs" : 25,
-        "visualize_per_epochs" : 400,    
+        "visualize_per_epochs" : 10,    
 
         "tensorboard": true
     }

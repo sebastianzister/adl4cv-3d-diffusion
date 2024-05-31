@@ -6,7 +6,29 @@ import model.loss as module_loss
 import model.metric as module_metric
 import model.model as module_arch
 from parse_config import ConfigParser
+import matplotlib.pyplot as plt
+import numpy as np
 
+def plot_output(data, output, target, index=0):
+    data = data[index].cpu().numpy()
+    output = output[index].cpu().numpy()
+    target = target[index].cpu().numpy()
+
+    fig = plt.figure(figsize=(12, 4))
+
+    ax1 = fig.add_subplot(131, projection='3d')
+    ax1.scatter(data[:, 0], data[:, 1], data[:, 2], c='r', marker='o')
+    ax1.set_title('Input')
+
+    ax2 = fig.add_subplot(132, projection='3d')
+    ax2.scatter(output[:, 0], output[:, 1], output[:, 2], c='g', marker='o')
+    ax2.set_title('Output')
+
+    ax3 = fig.add_subplot(133, projection='3d')
+    ax3.scatter(target[:, 0], target[:, 1], target[:, 2], c='b', marker='o')
+    ax3.set_title('Target')
+
+    plt.show()
 
 def main(config):
     logger = config.get_logger('test')
@@ -51,6 +73,9 @@ def main(config):
 
             #
             # save sample images, or do something with output here
+            if i == 0:
+              output = output[i].cpu().numpy()
+              np.save(f'output/output_{i}.npy', output)
             #
 
             # computing loss, metrics on test set

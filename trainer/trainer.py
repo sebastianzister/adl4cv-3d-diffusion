@@ -67,6 +67,7 @@ class Trainer(BaseTrainer):
         log = self.train_metrics.result()
 
         if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
+            print("visualize")
             val_log = self._valid_epoch(epoch)
             log.update(**{'val_'+k : v for k, v in val_log.items()})
 

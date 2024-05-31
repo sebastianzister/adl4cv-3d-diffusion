@@ -100,11 +100,7 @@ class Trainer(BaseTrainer):
 
                 output = self.model(data)
                 
-                #visualize_multiple_point_clouds([data[0].cpu(), output[0].cpu(), target[0].cpu()], ['Input', 'Output', 'Target'])
-                plot_point_cloud(data[0].cpu().numpy(), 'Input')
-                plot_point_cloud(output[0].cpu().numpy(), 'Output')
-                plot_point_cloud(target[0].cpu().numpy(), 'Target')
-
+                visualize_multiple_point_clouds([data[0].cpu(), output[0].cpu(), target[0].cpu()], ['Input', 'Output', 'Target'])
 
                 loss = self.criterion(output, target)
 

@@ -693,7 +693,7 @@ class PVCNN2Base(BaseModel):
         assert emb.shape == torch.Size([timesteps.shape[0], self.embed_dim])
         return emb
 
-    def forward(self, inputs):
+    def forward(self, inputs, visualize_latent=False):
         inputs = inputs.permute(0, 2, 1)        
 
         t = torch.ones(inputs.shape[0]).to(inputs.device)

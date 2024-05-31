@@ -3,6 +3,8 @@ import torch
 from torchvision.utils import make_grid
 from base import BaseTrainer
 from utils import inf_loop, MetricTracker, visualize_batch, visualize_multiple_point_clouds
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 
 class Trainer(BaseTrainer):
@@ -75,6 +77,13 @@ class Trainer(BaseTrainer):
             self.lr_scheduler.step()
         return log
 
+    def plot_point_cloud(data, title):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(data[:, 0], data[:, 1], data[:, 2], c='r', marker='o')
+        ax.set_title(title)
+        plt.show()
+
     def _valid_epoch(self, epoch):
         """
         Validate after training an epoch
@@ -90,7 +99,11 @@ class Trainer(BaseTrainer):
 
                 output = self.model(data)
                 
-                visualize_multiple_point_clouds([data[0].cpu(), output[0].cpu(), target[0].cpu()], ['Input', 'Output', 'Target'])
+                #visualize_multiple_point_clouds([data[0].cpu(), output[0].cpu(), target[0].cpu()], ['Input', 'Output', 'Target'])
+                plot_point_cloud(data[0].cpu().numpy(), 'Input')
+                plot_point_cloud(output[0].cpu().numpy(), 'Output')
+                plot_point_cloud(target[0].cpu().numpy(), 'Target')
+
 
                 loss = self.criterion(output, target)
 

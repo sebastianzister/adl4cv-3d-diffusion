@@ -3,8 +3,12 @@
     "n_gpu": 1,
 
     "arch": {
-        "type": "SparseDetailModel",
-        "args": {}
+        "type": "PUNet",
+        "args": {
+            "up_ratio": 1,
+            "npoint": 2048,
+            "use_bn": true
+        }
     },
     "data_loader": {
         "type": "PointDetailDataLoader",
@@ -19,33 +23,33 @@
     "optimizer": {
         "type": "Adam",
         "args":{
-            "lr": 0.001,
+            "lr": 0.0001,
             "weight_decay": 0,
-            "amsgrad": true
+            "amsgrad": false 
         }
     },
-    "loss": "cd_loss",
+    "loss": "emd_re_loss",
     "metrics": [
     ],
     "lr_scheduler": {
         "type": "StepLR",
         "args": {
-            "step_size": 50,
+            "step_size": 500,
             "gamma": 0.1
         }
     },
     "trainer": {
-        "epochs": 200,
+        "epochs": 1000,
 
         "save_dir": "saved/",
-        "save_period": 100,
+        "save_period": 1000,
         "verbosity": 2,
         
         "monitor": "min val_loss",
         "early_stop": 0,
         "do_validation": false,
-        "val_per_epochs" : 10,
-        "visualize_per_epochs" : 50,    
+        "val_per_epochs" : 100,
+        "visualize_per_epochs" : 5000,    
 
         "tensorboard": true
     }

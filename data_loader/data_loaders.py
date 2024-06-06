@@ -1,6 +1,6 @@
 from torchvision import datasets, transforms
 from base import BaseDataLoader
-from dataset import PointDetailDataset
+from dataset import PointDetailDataset, PUNET_Dataset_1
 
 
 class MnistDataLoader(BaseDataLoader):
@@ -27,4 +27,12 @@ class PointDetailDataLoader(BaseDataLoader):
         ])
         self.data_dir = data_dir
         self.dataset = PointDetailDataset(self.data_dir)
+        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
+
+class PUNETDataLoader(BaseDataLoader):
+    """
+    PUNET data loading using BaseDataLoader
+    """
+    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
+        self.dataset = PUNET_Dataset_1()
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)

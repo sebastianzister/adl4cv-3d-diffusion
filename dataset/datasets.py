@@ -4,6 +4,16 @@ import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 
+def normalize_pc_pair(input, gt):
+    data_radius = np.ones(shape=(len(input)))
+    centroid = np.mean(gt[:,0:3], axis=0, keepdims=True)
+    gt[:,0:3] = gt[:,0:3] - centroid
+    furthest_distance = np.amax(np.sqrt(np.sum(gt[:,0:3] ** 2, axis=-1)),axis=0,keepdims=True)
+    gt[ :, 0:3] = gt[:,0:3] / np.expand_dims(furthest_distance,axis=-1)
+    input[ :, 0:3] = input[ :, 0:3] - centroid
+    input[ :, 0:3] = input[ :, 0:3] / np.expand_dims(furthest_distance,axis=-1)
+    
+    return input, gt
 
 class PointDetailDataset(Dataset):
     def __init__(self, root_dir, train=True , transform=None):

@@ -10,7 +10,7 @@ def _linear_gn_relu(in_channels, out_channels):
     return nn.Sequential(nn.Linear(in_channels, out_channels), nn.GroupNorm(8,out_channels), Swish())
 
 
-def create_mlp_components(in_channels, out_channels, classifier=False, dim=2, width_multiplier=1):
+def create_mlp_components(in_channels, out_channels, classifier=False, dim=2, width_multiplier=1, activations=None, use_bn=True):
     '''
     Create the shared mlp components.
 
@@ -42,7 +42,7 @@ def create_mlp_components(in_channels, out_channels, classifier=False, dim=2, wi
             layers.append(nn.Dropout(oc))
         else:
             oc = int(r * oc)
-            layers.append(block(in_channels, oc))
+            layers.append(block(in_channels, oc, dim=dim))
             in_channels = oc
     if dim == 1:
         if classifier:
@@ -53,7 +53,7 @@ def create_mlp_components(in_channels, out_channels, classifier=False, dim=2, wi
         if classifier:
             layers.append(nn.Conv1d(in_channels, out_channels[-1], 1))
         else:
-            layers.append(SharedMLP(in_channels, int(r * out_channels[-1])))
+            layers.append(SharedMLP(in_channels, int(r * out_channels[-1]), activations=activations, use_bn=use_bn, dim=dim))
     return layers, out_channels[-1] if classifier else int(r * out_channels[-1])
 
 

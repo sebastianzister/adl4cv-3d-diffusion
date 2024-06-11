@@ -19,7 +19,7 @@ setup(
                 'cuda/emd.cpp',
                 'cuda/emd_kernel.cu',
             ],
-            extra_compile_args={'cxx': ['-g'], 'nvcc': ['-O2', '-allow-unsupported-compiler', '--compiler-bindir=/home/zister/miniconda3/envs/3d_diff/bin']}
+            extra_compile_args={'cxx': ['-g'], 'nvcc': ['-O2', '-allow-unsupported-compiler', '--compiler-bindir=/usr/bin/gcc-11']}
         ),
     ],
     cmdclass={

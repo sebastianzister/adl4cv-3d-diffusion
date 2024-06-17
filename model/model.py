@@ -254,6 +254,7 @@ class PUNet(BaseModel):
         else:
             return xout + input_pts
 
+'''
 class SparseDetailModel(BaseModel, ME.MinkowskiNetwork):
     ENC_CHANNELS = [16, 32, 64, 128, 256, 512, 1024]
     DEC_CHANNELS = [16, 32, 64, 128, 256, 512, 1024]
@@ -618,5 +619,5 @@ class SparseDetailModel(BaseModel, ME.MinkowskiNetwork):
         out = dec_s1.decomposed_coordinates[0].unsqueeze(0)*0.01
         print(len(out))
         return out
-        
+'''        
     

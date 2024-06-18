@@ -6,6 +6,7 @@ from metrics.ChamferDistancePytorch.chamfer3D.dist_chamfer_3D import chamfer_3DF
 # repulsion loss
 from auction_match import auction_match
 from pointnet2_ops import pointnet2_utils
+#from pointnet2 import pointnet2_utils
 from knn_cuda import KNN
 
 

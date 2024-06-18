@@ -51,12 +51,14 @@ class Trainer(BaseTrainer):
         for batch_idx, (data, target) in enumerate(self.data_loader):
             data, target = data.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()
+            
             output = self.model(data)
             
             # changed to multiple losses
             loss = 0
             for i, c in enumerate(self.criterion):
                 loss += self.criterion_weight[i] * c(output, target)
+
             loss.backward()
             self.optimizer.step()
             

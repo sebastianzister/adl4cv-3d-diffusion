@@ -4,6 +4,7 @@ from metrics.PyTorchEMD.emd import earth_mover_distance
 from metrics.ChamferDistancePytorch.chamfer3D.dist_chamfer_3D import chamfer_3DFunction
 
 # repulsion loss
+from auction_match import auction_match
 from pointnet2_ops import pointnet2_utils
 from knn_cuda import KNN
 
@@ -13,6 +14,17 @@ def knn_point(group_size, point_cloud, query_cloud, transpose_mode=False):
     dist, idx = knn_obj(point_cloud, query_cloud)
     return dist, idx
 
+def pu_emd_loss(output, target):
+        idx, _ = auction_match(output, target)
+        matched_out = pointnet2_utils.gather_operation(target.transpose(1, 2).contiguous(), idx)
+        matched_out = matched_out.transpose(1, 2).contiguous()
+        dist2 = (output - matched_out) ** 2
+        dist2 = dist2.view(dist2.shape[0], -1) # <-- ???
+        dist2 = torch.mean(dist2, dim=1, keepdims=True) # B,
+
+        # we assume the point cloud is normalized to a unit sphere
+        #dist2 /= pcd_radius
+        return torch.mean(dist2)
 
 # target gets ignored
 def repulsion_loss(output, target):
@@ -34,7 +46,8 @@ def repulsion_loss(output, target):
     return uniform_loss
 
 def emd_re_loss(output, target):
-    return 100 * emd_loss(output, target) + repulsion_loss(output, target)
+    return 100 * pu_emd_loss(output, target) + repulsion_loss(output, target)
+    #return 100 * emd_loss(output, target) + repulsion_loss(output, target)
 
 def cd_re_loss(output, target):
     return cd_loss(output, target) + repulsion_loss(output, target)

@@ -232,6 +232,53 @@ class ShapeNet15kPointClouds(Uniform15KPC):
             all_points_mean=all_points_mean, all_points_std=all_points_std,
             input_dim=3, use_mask=use_mask)
 
+class ShapeNet15kPointCloudsAugmented(ShapeNet15kPointClouds):
+    def __init__(self, root_dir="data/ShapeNetCore.v2.PC15k",
+                 categories=['car'], tr_sample_size=4096, te_sample_size=4096,
+                 split='train', scale=1., normalize_per_shape=False,
+                 normalize_std_per_axis=False, box_per_shape=False,
+                 random_subsample=False,
+                 all_points_mean=None, all_points_std=None,
+                 use_mask=False, length=None, down_ratio=2):
+        super(ShapeNet15kPointCloudsAugmented, self).__init__(
+            root_dir, categories, tr_sample_size, te_sample_size,
+            split, scale, normalize_per_shape, normalize_std_per_axis,
+            box_per_shape, random_subsample, all_points_mean, all_points_std,
+            use_mask)
+
+        self.down_ratio = down_ratio
+
+        if length is not None:
+            self.train_points = self.train_points[:length]
+            
+        centroid = np.mean(self.train_points[..., :3], axis=1, keepdims=True)
+        furthest_distance = np.amax(np.sqrt(np.sum((self.train_points[..., :3] - centroid) ** 2, axis=-1)), axis=1, keepdims=True)
+        self.radius = furthest_distance[:, 0] # not very sure?
+
+        print("RADIUS::", self.radius)
+
+#        self.radius = np.ones(shape=(len(self.input)))
+        self.train_points[..., :3] -= centroid
+        self.train_points[..., :3] /= np.expand_dims(furthest_distance, axis=-1)
+#            self.input[..., :3] -= centroid
+#            self.input[..., :3] /= np.expand_dims(furthest_distance, axis=-1
+    
+    def __getitem__(self, idx):
+
+        y = self.train_points[idx]
+        if self.random_subsample:
+            tr_idxs = np.random.choice(y.shape[0], self.tr_sample_size)
+        else:
+            tr_idxs = np.arange(self.tr_sample_size)
+        y = torch.from_numpy(y[tr_idxs, :]).float()
+
+        x = y[:self.tr_sample_size//self.down_ratio] 
+
+        # add gaussian noise
+        #noise = torch.randn_like(x) * 0.01
+        #x = x + noise
+
+        return (x, y)
 
 
 class PointCloudMasks(object):

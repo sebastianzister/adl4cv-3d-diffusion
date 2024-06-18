@@ -110,7 +110,7 @@ class PVCNN2Base(BaseModel):
         assert emb.shape == torch.Size([timesteps.shape[0], self.embed_dim])
         return emb
 
-    def forward(self, inputs):
+    def forward(self, inputs, visualize_latent=False):
         inputs = inputs.permute(0, 2, 1)        
 
         t = torch.ones(inputs.shape[0]).to(inputs.device)
@@ -248,43 +248,53 @@ class PUNet(BaseModel):
             pt_utils.SharedMLP([in_ch, 64], bn=use_bn),
             pt_utils.SharedMLP([64, 3], activation=None, bn=False)) 
 
-    def forward(self, points, npoint=None):
+    def forward(self, points, npoint=None, visualize_latent=False):
         if npoint is None:
             npoints = [None] * len(self.npoints)
         else:
-            return xout + input_pts
+            npoints = []
+            for k in range(len(self.npoints)):
+                npoints.append(npoint // 2 ** k)
 
+<<<<<<< HEAD
 '''
 class SparseDetailModel(BaseModel, ME.MinkowskiNetwork):
     ENC_CHANNELS = [16, 32, 64, 128, 256, 512, 1024]
     DEC_CHANNELS = [16, 32, 64, 128, 256, 512, 1024]
+=======
+        # points: bs, N, 3/6
+        xyz = points[..., :3].contiguous()
+        feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
+>>>>>>> arch_tests
 
-    def __init__(self, in_channels=1, out_channels=3, dimension=3, D=3):
-        BaseModel.__init__(self)
-        ME.MinkowskiNetwork.__init__(self, D)
+        # downsample
+        l_xyz, l_feats = [xyz], [feats]
+        for k in range(len(self.SA_modules)):
+            lk_xyz, lk_feats = self.SA_modules[k](l_xyz[k], l_feats[k])
+            l_xyz.append(lk_xyz)
+            l_feats.append(lk_feats)
 
-        # Input sparse tensor must have tensor stride 128.
-        enc_ch = self.ENC_CHANNELS
-        dec_ch = self.DEC_CHANNELS
+        # upsample
+        up_feats = []
+        for k in range(len(self.FP_Modules)):
+            upk_feats = self.FP_Modules[k](xyz, l_xyz[k + 2], None, l_feats[k + 2])
+            up_feats.append(upk_feats)
 
-        # Encoder
-        self.enc_block_s1 = nn.Sequential(
-            ME.MinkowskiConvolution(1, enc_ch[0], kernel_size=3, stride=1, dimension=3),
-            ME.MinkowskiBatchNorm(enc_ch[0]),
-            ME.MinkowskiELU(),
-        )
+        # aggregation
+        # [xyz, l0, l1, l2, l3]
+        feats = torch.cat([
+            xyz.transpose(1, 2).contiguous(),
+            l_feats[1],
+            *up_feats], dim=1).unsqueeze(-1)  # bs, mid_ch, N, 1
 
-        self.enc_block_s1s2 = nn.Sequential(
-            ME.MinkowskiConvolution(
-                enc_ch[0], enc_ch[1], kernel_size=2, stride=2, dimension=3
-            ),
-            ME.MinkowskiBatchNorm(enc_ch[1]),
-            ME.MinkowskiELU(),
-            ME.MinkowskiConvolution(enc_ch[1], enc_ch[1], kernel_size=3, dimension=3),
-            ME.MinkowskiBatchNorm(enc_ch[1]),
-            ME.MinkowskiELU(),
-        )
+        # expansion
+        r_feats = []
+        for k in range(len(self.FC_Modules)):
+            feat_k = self.FC_Modules[k](feats) # bs, mid_ch, N, 1
+            r_feats.append(feat_k)
+        r_feats = torch.cat(r_feats, dim=2) # bs, mid_ch, r * N, 1
 
+<<<<<<< HEAD
         self.enc_block_s2s4 = nn.Sequential(
             ME.MinkowskiConvolution(
                 enc_ch[1], enc_ch[2], kernel_size=2, stride=2, dimension=3
@@ -621,3 +631,8 @@ class SparseDetailModel(BaseModel, ME.MinkowskiNetwork):
         return out
 '''        
     
+=======
+        # reconstruction
+        output = self.pcd_layer(r_feats)  # bs, 3, r * N, 1
+        return output.squeeze(-1).transpose(1, 2).contiguous() # bs, 3, r * N
+>>>>>>> arch_tests

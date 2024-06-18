@@ -1,6 +1,6 @@
 from torchvision import datasets, transforms
 from base import BaseDataLoader
-from dataset import PointDetailDataset, PUNET_Dataset_1, ShapeNet15kPointCloudsAugmented
+from dataset import PointDetailDataset, PUNET_Dataset_1, ShapeNet15kPointCloudsAugmented, PVDDataset
 
 
 class MnistDataLoader(BaseDataLoader):
@@ -41,6 +41,14 @@ class ShapeNetAugmentedDataLoader(BaseDataLoader):
     """
     ShapeNetAugmented data loading using BaseDataLoader
     """
-    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=0, training=True, size=None):
+    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=0, training=True, size=None, pin_memory=False):
         self.dataset = ShapeNet15kPointCloudsAugmented(down_ratio=2, tr_sample_size=4096, length=size)
-        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
+        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers, pin_memory=pin_memory)
+
+class PVDDataLoader(BaseDataLoader):
+    """
+    PVD data loading using BaseDataLoader
+    """
+    def __init__(self, data_dir, batch_size, shuffle=False, validation_split=0.0, num_workers=0, training=True, size=None, pin_memory=False):
+        self.dataset = PVDDataset()
+        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers, pin_memory=pin_memory)

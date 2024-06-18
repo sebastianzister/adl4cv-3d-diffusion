@@ -47,3 +47,22 @@ class PointDetailDataset(Dataset):
             data = self.transform(data)
 
         return (x, y)
+
+class PVDDataset(Dataset):
+    def __init__(self, root_dir="data", train=True , transform=None):
+        self.data = torch.load(os.path.join(root_dir, 'samples.pth')).numpy()
+        
+        # normalize to unit sphere
+        centroid = np.mean(self.data[..., :3], axis=1, keepdims=True)
+        furthest_distance = np.amax(np.sqrt(np.sum((self.data[..., :3] - centroid) ** 2, axis=-1)), axis=1, keepdims=True)
+        self.radius = furthest_distance[:, 0] # not very sure?
+
+#        self.radius = np.ones(shape=(len(self.input)))
+        self.data[..., :3] -= centroid
+        self.data[..., :3] /= np.expand_dims(furthest_distance, axis=-1)
+    
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        return self.data[idx]

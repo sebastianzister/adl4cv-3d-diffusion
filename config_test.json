@@ -18,7 +18,8 @@
             "shuffle": true,
             "validation_split": 0.2,
             "num_workers": 0,
-            "size": 100
+            "pin_memory": false,
+            "size" : 300
         }
     },
     "optimizer": {
@@ -29,7 +30,8 @@
             "amsgrad": true
         }
     },
-    "loss": "emd_re_loss",
+    "loss": ["pu_emd_loss", "repulsion_loss"],
+    "loss_weight": [100.0, 1.0],
     "metrics": [
     ],
     "lr_scheduler": {
@@ -43,7 +45,7 @@
         "epochs": 1000,
 
         "save_dir": "saved/",
-        "save_period": 2000,
+        "save_period": 200,
         "verbosity": 2,
         
         "monitor": "min val_loss",

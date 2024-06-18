@@ -6,13 +6,18 @@ from utils import inf_loop, MetricTracker, visualize_batch, visualize_multiple_p
 
 from torch.profiler import profile, record_function, ProfilerActivity
 
+import time
+
 class Trainer(BaseTrainer):
     """
     Trainer class
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer, config, device,
+    def __init__(self, model, criterion, criterion_weight, metric_ftns, optimizer, config, device,
                  data_loader, valid_data_loader=None, lr_scheduler=None, len_epoch=None):
         super().__init__(model, criterion, metric_ftns, optimizer, config)
+        # added for multiple losses
+        self.criterion_weight = criterion_weight
+
         self.config = config
         self.device = device
         self.data_loader = data_loader
@@ -38,13 +43,22 @@ class Trainer(BaseTrainer):
         :param epoch: Integer, current training epoch.
         :return: A log that contains average loss and metric in this epoch.
         """
+        # start timer
+        start_time = time.time()
+
         self.model.train()
         self.train_metrics.reset()
         for batch_idx, (data, target) in enumerate(self.data_loader):
             data, target = data.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()
+            
             output = self.model(data)
-            loss = self.criterion(output, target)
+            
+            # changed to multiple losses
+            loss = 0
+            for i, c in enumerate(self.criterion):
+                loss += self.criterion_weight[i] * c(output, target)
+
             loss.backward()
             self.optimizer.step()
             
@@ -80,6 +94,9 @@ class Trainer(BaseTrainer):
 
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
+            
+        # end timer
+        print("Epoch {} took {:.2f} seconds".format(epoch, time.time() - start_time))
         return log
 
     def _valid_epoch(self, epoch):
@@ -98,8 +115,10 @@ class Trainer(BaseTrainer):
                 output = self.model(data)
                 
                 #visualize_multiple_point_clouds([data[0].cpu(), output[0].cpu(), target[0].cpu()], ['Input', 'Output', 'Target'])
-
-                loss = self.criterion(output, target)
+                
+                loss = 0
+                for i, c in enumerate(self.criterion):
+                    loss += self.criterion_weight[i] * c(output, target)
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('loss', loss.item())
@@ -119,9 +138,6 @@ class Trainer(BaseTrainer):
             data, target = data.to(self.device), target.to(self.device)
             
             output = self.model(data, visualize_latent=True)
-            loss = self.criterion(output, target)
-            
-            
             
             self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'visualize')
             self.writer.add_image('target_result', visualize_batch(data.cpu(), output.cpu(), target.cpu()))

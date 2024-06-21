@@ -273,6 +273,18 @@ class PUNet(BaseModel):
             print(k, 'xyz', lk_xyz.shape)
             print(k, 'fea', lk_feats.shape)
 
+        '''
+        0 xyz torch.Size([32, 2048, 3])
+        1 xyz torch.Size([32, 1024, 3])
+        2 xyz torch.Size([32, 512, 3])
+        3 xyz torch.Size([32, 256, 3])
+        
+        0 fea torch.Size([32, 64, 2048])
+        1 fea torch.Size([32, 128, 1024])
+        2 fea torch.Size([32, 256, 512])
+        3 fea torch.Size([32, 512, 256])
+        '''
+
         # upsample
         up_feats = []
         for k in range(len(self.FP_Modules)):
@@ -396,6 +408,9 @@ class PVCU(BaseModel):
             lk_xyz, lk_feats = self.SA_modules[k](l_xyz[k], l_feats[k])
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)
+
+            print(k, 'xyz', lk_xyz.shape)
+            print(k, 'fea', lk_feats.shape)
 
         # upsample
         up_feats = []

@@ -184,7 +184,7 @@ class PVCNN2(PVCNN2Base):
             width_multiplier=width_multiplier, voxel_resolution_multiplier=voxel_resolution_multiplier
         )
 
-        
+# ---------------------------------------------------------------------------------------
 class PUNet(BaseModel):
     def __init__(self, npoint=1024, up_ratio=4, use_normal=False, use_bn=False):
         super().__init__()
@@ -309,7 +309,9 @@ class PUNet(BaseModel):
         output = self.pcd_layer(r_feats)  # bs, 3, r * N, 1
         return output.squeeze(-1).transpose(1, 2).contiguous() # bs, 3, r * N
 
-
+# ---------------------------------------------------------------------------------------
+# PUNet -> PVCU
+# ---------------------------------------------------------------------------------------
 class PVCU(BaseModel):
     def __init__(self, npoint=1024, up_ratio=4, use_normal=False, use_bn=False):
         super().__init__()
@@ -347,7 +349,7 @@ class PVCU(BaseModel):
         ]
         
         sa_layers, sa_in_channels, channels_sa_features, _ = create_pointnet2_sa_components(
-            sa_blocks=sa_blocks, extra_feature_channels=0, with_se=True, embed_dim=64,
+            sa_blocks=sa_blocks, extra_feature_channels=0, with_se=False, embed_dim=0,
             use_att=False, dropout=0.0, width_multiplier=1, voxel_resolution_multiplier=1
         )
 
@@ -405,6 +407,9 @@ class PVCU(BaseModel):
         # downsample
         l_xyz, l_feats = [xyz], [feats]
         for k in range(len(self.SA_modules)):
+            '''
+            torch.Size([32, 2048, 3])
+            None'''
             lk_xyz, lk_feats = self.SA_modules[k](l_xyz[k], l_feats[k])
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)
@@ -436,3 +441,6 @@ class PVCU(BaseModel):
         output = self.pcd_layer(r_feats)  # bs, 3, r * N, 1
         return output.squeeze(-1).transpose(1, 2).contiguous() # bs, 3, r * N
 
+# ---------------------------------------------------------------------------------------
+# PVCNN -> PVCU
+# ---------------------------------------------------------------------------------------

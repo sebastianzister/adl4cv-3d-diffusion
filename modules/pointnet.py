@@ -86,13 +86,9 @@ class PointNetSAModule(nn.Module):
             print(coords.shape)
             groups = grouper(coords, centers_coords, features)
             print(groups.shape)
-            mlp_grouped = mlp(groups)
-            if isinstance(mlp_grouped, (list, tuple)):
-                print(mlp_grouped[0].shape)
-                features_list.append(mlp_grouped[0].max(dim=-1).values)
-            else:
-                print(mlp_grouped.shape)
-                features_list.append(mlp_grouped.max(dim=-1).values)
+            
+            mlp_grouped = mlp(groups)    
+            features_list.append(mlp_grouped.max(dim=-1).values)
             
         if len(features_list) > 1:
             return torch.cat(features_list, dim=1), centers_coords

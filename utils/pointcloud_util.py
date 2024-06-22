@@ -161,7 +161,7 @@ def get_img_from_fig(fig, dpi=180):
 def visualize_batch(data, output, target):
     batch_size = data.shape[0]
     #p = pv.Plotter(shape=(batch_size, 3), window_size=(600*3, 600*batch_size), off_screen=True)
-    p = pv.Plotter(shape=(2, batch_size), window_size=(600*batch_size, 600*2), off_screen=True, border=False)
+    p = pv.Plotter(shape=(3, batch_size), window_size=(600*batch_size, 600*3), off_screen=True, border=False)
     p.remove_bounding_box()
     
     data = data.numpy()[:,:, [2,0,1]]
@@ -180,6 +180,8 @@ def visualize_batch(data, output, target):
         p.add_points(target[i], color='lightblue', label='Target', point_size=15, render_points_as_spheres=True)
         p.subplot(1, i)
         p.add_points(output[i], color='lightgreen', label='Output', point_size=15, render_points_as_spheres=True)
+        p.subplot(2, i)
+        p.add_points(data[i], color='lightcoral', label='Data', point_size=15, render_points_as_spheres=True)
 
 #        p.subplot(i, 0)
 #        p.add_points(target[i], color='lightblue', label='Target', point_size=15, render_points_as_spheres=True)

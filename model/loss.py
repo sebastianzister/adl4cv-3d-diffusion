@@ -9,6 +9,16 @@ from pointnet2_ops import pointnet2_utils
 #from pointnet2 import pointnet2_utils
 from knn_cuda import KNN
 
+from pytorch_fre.pytorch_fre_modules import FreLoss
+import math
+
+# workaround to get pi
+torch.pi = math.pi
+freLoss = FreLoss(512, 1024, 50, 50)
+
+def fre_loss(output, target):
+    return freLoss(output, target)
+
 
 def knn_point(group_size, point_cloud, query_cloud, transpose_mode=False):
     knn_obj = KNN(k=group_size, transpose_mode=transpose_mode)

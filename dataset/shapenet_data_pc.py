@@ -239,7 +239,8 @@ class ShapeNet15kPointCloudsAugmented(ShapeNet15kPointClouds):
                  normalize_std_per_axis=False, box_per_shape=False,
                  random_subsample=False,
                  all_points_mean=None, all_points_std=None,
-                 use_mask=False, length=None, down_ratio=2):
+                 use_mask=False, length=None, down_ratio=2, random_downsample=False,
+                 noise=False):
         super(ShapeNet15kPointCloudsAugmented, self).__init__(
             root_dir, categories, tr_sample_size, te_sample_size,
             split, scale, normalize_per_shape, normalize_std_per_axis,
@@ -262,6 +263,8 @@ class ShapeNet15kPointCloudsAugmented(ShapeNet15kPointClouds):
         self.train_points[..., :3] /= np.expand_dims(furthest_distance, axis=-1)
 #            self.input[..., :3] -= centroid
 #            self.input[..., :3] /= np.expand_dims(furthest_distance, axis=-1
+        self.random_downsample = random_downsample
+        self.noise = noise
     
     def __getitem__(self, idx):
 
@@ -272,9 +275,16 @@ class ShapeNet15kPointCloudsAugmented(ShapeNet15kPointClouds):
             tr_idxs = np.arange(self.tr_sample_size)
         y = torch.from_numpy(y[tr_idxs, :]).float()
 
-        x = y[:self.tr_sample_size//self.down_ratio] 
+        if self.random_downsample:
+            te_idxs = np.random.choice(y.shape[0], self.te_sample_size//self.down_ratio)
+        else:
+            te_idxs = np.arange(self.te_sample_size//self.down_ratio)
+        x = y[te_idxs] 
 
         # add gaussian noise
+        if(self.noise):
+            ns = torch.randn_like(x) * 0.01
+            x = x + ns
         #noise = torch.randn_like(x) * 0.01
         #x = x + noise
 

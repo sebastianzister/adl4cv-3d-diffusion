@@ -1,0 +1,60 @@
+{
+    "name": "PointDetail",
+    "n_gpu": 1,
+
+    "arch": {
+        "type": "PUNet",
+        "args": {
+            "use_bn": true,
+            "npoint": 2048,
+            "up_ratio": 2
+        }
+    },
+    "data_loader": {
+        "type": "PVDDataLoader",
+        "args":{
+            "data_dir": "data/",
+            "batch_size": 16,
+            "shuffle": false,
+            "validation_split": 0.0,
+            "num_workers": 0,
+            "pin_memory": false,
+            "size" : 300
+        }
+    },
+    "optimizer": {
+        "type": "Adam",
+        "args":{
+            "lr": 0.01,
+            "weight_decay": 0,
+            "amsgrad": true
+        }
+    },
+    "loss": ["pu_emd_loss", "repulsion_loss"],
+    "loss_weight": [100.0, 1.0],
+    "metrics": [
+    ],
+    "lr_scheduler": {
+        "type": "StepLR",
+        "args": {
+            "step_size": 2000,
+            "gamma": 0.1
+        }
+    },
+    "trainer": {
+        "epochs": 1005,
+
+        "save_dir": "saved/",
+        "save_period": 200,
+        "verbosity": 2,
+        
+        "monitor": "min val_loss",
+        "early_stop": 0,
+        "do_validation": false,
+        "val_per_epochs" : 5,
+        "visualize_per_epochs" : 5,    
+        "visualize_train_batch" : 5,
+
+        "tensorboard": true
+    }
+}

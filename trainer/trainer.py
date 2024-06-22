@@ -33,8 +33,8 @@ class Trainer(BaseTrainer):
         self.lr_scheduler = lr_scheduler
         self.log_step = int(np.sqrt(data_loader.batch_size))
 
-        self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
-        self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
+        self.train_metrics = MetricTracker('loss', 'epoch_loss', *[m.__name__ for m in self.metric_ftns], *[c.__name__ for c in self.criterion], writer=self.writer)
+        self.valid_metrics = MetricTracker('loss', 'epoch_loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
     def _train_epoch(self, epoch):
         """
@@ -55,15 +55,21 @@ class Trainer(BaseTrainer):
             output = self.model(data)
             
             # changed to multiple losses
-            loss = 0
+            tot_loss = 0
+            losses = []
             for i, c in enumerate(self.criterion):
-                loss += self.criterion_weight[i] * c(output, target)
+                loss = self.criterion_weight[i] * c(output, target)
+                losses.append(loss)
+                tot_loss += loss
 
-            loss.backward()
+            tot_loss.backward()
             self.optimizer.step()
             
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-            self.train_metrics.update('loss', loss.item())
+            self.train_metrics.update('loss', tot_loss.item())
+            for i, c in enumerate(self.criterion):
+                self.train_metrics.update(c.__name__, losses[i].item())
+
             for met in self.metric_ftns:
                 self.train_metrics.update(met.__name__, met(output, target))
         
@@ -71,7 +77,7 @@ class Trainer(BaseTrainer):
                 self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
                     epoch,
                     self._progress(batch_idx),
-                    loss.item()))
+                    tot_loss.item()))
                 #self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
             
             # visualize first train batch
@@ -84,6 +90,8 @@ class Trainer(BaseTrainer):
             #print(prof.key_averages().table(sort_by="cuda_time_total"))
             #print(prof.key_averages().table(sort_by="cpu_time_total"))
         log = self.train_metrics.result()
+        self.writer.set_step(epoch, 'train_epoch')
+        self.writer.add_scalar('loss', log['loss'])
 
         if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
             val_log = self._valid_epoch(epoch)
@@ -129,7 +137,11 @@ class Trainer(BaseTrainer):
         # add histogram of model parameters to the tensorboard
 #        for name, p in self.model.named_parameters():
 #            self.writer.add_histogram(name, p, bins='auto')
-        return self.valid_metrics.result()
+
+        log = self.valid_metrics.result()
+        self.writer.set_step(epoch, 'valid_epoch')
+        self.writer.add_scalar('loss', log['loss'])
+        return log
     
     def _visualize_val_batch(self, epoch):
         self.model.eval()

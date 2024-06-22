@@ -41,8 +41,8 @@ class ShapeNetAugmentedDataLoader(BaseDataLoader):
     """
     ShapeNetAugmented data loading using BaseDataLoader
     """
-    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=0, training=True, size=None, pin_memory=False):
-        self.dataset = ShapeNet15kPointCloudsAugmented(down_ratio=2, tr_sample_size=4096, length=size)
+    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=0, training=True, size=None, pin_memory=False, tr_sample_size=4096, down_ratio=2, random_downsample=False, noise=False):
+        self.dataset = ShapeNet15kPointCloudsAugmented(down_ratio=down_ratio, tr_sample_size=tr_sample_size, length=size, random_downsample=random_downsample, noise=noise)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers, pin_memory=pin_memory)
 
 class PVDDataLoader(BaseDataLoader):

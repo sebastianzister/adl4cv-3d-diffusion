@@ -372,12 +372,13 @@ class PVCU(BaseModel):
 
         # upsamples for layer 2 ~ 4
         fp_blocks = [
-            ((64), None),
-            ((64), None),
-            ((64), None),
+            ((64, 64), None),
+            ((64, 64), None),
+            ((64, 64), None),
         ]
 
-        sa_in_channels[0] = 0
+        channels_sa_features = 0
+        sa_in_channels = [0, 128, 256, 512]
         print(channels_sa_features)
         print(sa_in_channels)
 

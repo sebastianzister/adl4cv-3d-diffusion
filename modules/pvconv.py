@@ -89,6 +89,8 @@ class PVConv(nn.Module):
 
     def forward(self, inputs):
         features, coords = inputs
+        print(features.shape)
+        print(coords.shape)
         voxel_features, voxel_coords = self.voxelization(features, coords)
         voxel_features = self.voxel_layers(voxel_features)
         voxel_features = F.trilinear_devoxelize(voxel_features, voxel_coords, self.resolution, self.training)
@@ -125,6 +127,8 @@ class PVConvReLU(nn.Module):
 
     def forward(self, inputs):
         features, coords = inputs
+        print(features.shape)
+        print(coords.shape)
         voxel_features, voxel_coords = self.voxelization(features, coords)
         voxel_features = self.voxel_layers(voxel_features)
         voxel_features = F.trilinear_devoxelize(voxel_features, voxel_coords, self.resolution, self.training)

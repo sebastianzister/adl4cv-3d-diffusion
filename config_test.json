@@ -52,8 +52,8 @@
         "early_stop": 0,
         "do_validation": false,
         "val_per_epochs" : 5,
-        "visualize_per_epochs" : 50,    
-        "visualize_train_batch" : 50,
+        "visualize_per_epochs" : 5000,    
+        "visualize_train_batch" : 5000,
 
         "tensorboard": true
     }

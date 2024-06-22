@@ -82,7 +82,11 @@ class PointNetSAModule(nn.Module):
         centers_coords = F.furthest_point_sample(coords, self.num_centers)
         features_list = []
         for grouper, mlp in zip(self.groupers, self.mlps):
-            features_list.append(mlp(grouper(coords, centers_coords, features)).max(dim=-1).values)
+            groups = grouper(coords, centers_coords, features)
+            mlp_grouped = mlp(groups)
+            print(groups)
+            print(mlp_grouped)
+            features_list.append(mlp_grouped.max(dim=-1).values)
         if len(features_list) > 1:
             return torch.cat(features_list, dim=1), centers_coords
         else:

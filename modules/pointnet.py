@@ -78,15 +78,16 @@ class PointNetSAModule(nn.Module):
         self.mlps = nn.ModuleList(mlps)
 
     def forward(self, inputs):
-        features, coords = inputs
+        features, coords, temb = inputs
         centers_coords = F.furthest_point_sample(coords, self.num_centers)
         features_list = []
         for grouper, mlp in zip(self.groupers, self.mlps):
-            features_list.append(mlp(grouper(coords, centers_coords, features)).max(dim=-1).values)
+            features, temb = mlp(grouper(coords, centers_coords, temb, features))
+            features_list.append(features.max(dim=-1).values)
         if len(features_list) > 1:
-            return torch.cat(features_list, dim=1), centers_coords
+            return features_list[0], centers_coords, temb.max(dim=-1).values if temb.shape[1] > 0 else temb
         else:
-            return features_list[0], centers_coords
+            return features_list[0], centers_coords, temb.max(dim=-1).values if temb.shape[1] > 0 else temb
 
     def extra_repr(self):
         return f'num_centers={self.num_centers}, out_channels={self.out_channels}'

@@ -435,7 +435,17 @@ class PVCU(BaseModel):
         # upsample
         up_feats = []
         for k in range(len(self.FP_Modules)):
-            upk_feats = self.FP_Modules[k](xyz, l_xyz[k + 2], None, l_feats[k + 2])
+            points_coords = xyz
+            centers_coords = l_xyz[k + 2]
+            centers_features = None
+            points_features = l_feats[k + 2]
+
+            print("\nFP -----------------------")
+            print(points_coords.shape)
+            print(centers_coords.shape)
+            print("centers_features.shape: None")
+            print(points_features.shape)
+            upk_feats = self.FP_Modules[k](points_coords, centers_coords, centers_features, points_features)
             up_feats.append(upk_feats)
 
         # aggregation
@@ -443,10 +453,10 @@ class PVCU(BaseModel):
         print("\nFC --------------------------")
         print(xyz.shape)
         print(l_feats[1].shape)
-        print(l_feats[2].shape)
+        print(up_feats[0].shape)
 
         feats = torch.cat([
-            xyz.transpose(1, 2).contiguous(),
+            xyz,
             l_feats[1], #should be l_feats[1] but dimensions are wrong
             *up_feats
         ], dim=1).unsqueeze(-1)  # bs, mid_ch, N, 1

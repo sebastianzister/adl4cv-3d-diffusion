@@ -108,14 +108,13 @@ class PointNetFPModule(nn.Module):
 
     def forward(self, inputs):
         if len(inputs) == 3:
-            points_coords, centers_coords, centers_features, temb = inputs
+            points_coords, centers_coords, centers_features = inputs
             points_features = None
         else:
-            points_coords, centers_coords, centers_features, points_features, temb = inputs
+            points_coords, centers_coords, centers_features, points_features = inputs
         interpolated_features = F.nearest_neighbor_interpolate(points_coords, centers_coords, centers_features)
-        interpolated_temb = F.nearest_neighbor_interpolate(points_coords, centers_coords, temb)
         if points_features is not None:
             interpolated_features = torch.cat(
                 [interpolated_features, points_features], dim=1
             )
-        return self.mlp(interpolated_features), points_coords, interpolated_temb
+        return self.mlp(interpolated_features), points_coords

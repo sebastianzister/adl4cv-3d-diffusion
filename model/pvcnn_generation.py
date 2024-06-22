@@ -192,36 +192,28 @@ def create_pointnet2_fp_modules(fp_blocks, in_channels, sa_in_channels, embed_di
     r, vr = width_multiplier, voxel_resolution_multiplier
 
     fp_layers = []
-    c = 0
     for fp_idx, (fp_configs, conv_configs) in enumerate(fp_blocks):
         fp_blocks = []
         out_channels = tuple(int(r * oc) for oc in fp_configs)
         fp_blocks.append(
-            PointNetFPModule(in_channels=in_channels + sa_in_channels[-1 - fp_idx] + embed_dim, out_channels=out_channels)
+            PointNetFPModule(in_channels=in_channels + sa_in_channels[-1 - fp_idx], out_channels=out_channels)
         )
         in_channels = out_channels[-1]
-
         if conv_configs is not None:
             out_channels, num_blocks, voxel_resolution = conv_configs
             out_channels = int(r * out_channels)
-            for p in range(num_blocks):
-                attention = (c+1) % 2 == 0 and c < len(fp_blocks) - 1 and use_att and p == 0
-                if voxel_resolution is None:
-                    block = SharedMLP
-                else:
-                    block = functools.partial(PVConv, kernel_size=3, resolution=int(vr * voxel_resolution), attention=attention,
-                                              dropout=dropout,
-                                              with_se=with_se, with_se_relu=True,
-                                              normalize=normalize, eps=eps)
-
+            if voxel_resolution is None:
+                block = SharedMLP
+            else:
+                block = functools.partial(PVConv, kernel_size=3, resolution=int(vr * voxel_resolution),
+                                          with_se=with_se, normalize=normalize, eps=eps)
+            for _ in range(num_blocks):
                 fp_blocks.append(block(in_channels, out_channels))
                 in_channels = out_channels
         if len(fp_blocks) == 1:
             fp_layers.append(fp_blocks[0])
         else:
             fp_layers.append(nn.Sequential(*fp_blocks))
-
-        c += 1
 
     return fp_layers, in_channels
 

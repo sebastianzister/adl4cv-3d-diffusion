@@ -371,12 +371,31 @@ class PVCU(BaseModel):
         '''
 
         # upsamples for layer 2 ~ 4
+        fp_blocks = [
+            ((64), None),
+            ((64), None),
+            ((64), None),
+        ]
+
+        sa_in_channels[0] = 0
+        print(channels_sa_features)
+        print(sa_in_channels)
+
+        fp_layers, channels_fp_features = create_pointnet2_fp_modules(
+            fp_blocks=fp_blocks, in_channels=channels_sa_features, sa_in_channels=sa_in_channels, with_se=False, 
+            embed_dim=0, use_att=False, dropout=0.0, width_multiplier=1, voxel_resolution_multiplier=1
+        )
+        self.FP_Modules = nn.ModuleList(fp_layers)
+
+        '''
         self.FP_Modules = nn.ModuleList()
         for k in range(len(self.npoints) - 1):
             self.FP_Modules.append(
                 PointnetFPModule(
                     mlp=[mlps[k + 1][-1], 64], 
                     bn=use_bn))
+        '''
+
         
         # feature Expansion
         in_ch = len(self.npoints) * 64 + 3 # 4 layers + input xyz

@@ -119,31 +119,20 @@ def create_pointnet2_sa_components(sa_blocks, extra_feature_channels, embed_dim=
     in_channels = extra_feature_channels + 3
 
     sa_layers, sa_in_channels = [], []
-    c = 0
     for conv_configs, sa_configs in sa_blocks:
-        k = 0
         sa_in_channels.append(in_channels)
         sa_blocks = []
-
         if conv_configs is not None:
             out_channels, num_blocks, voxel_resolution = conv_configs
             out_channels = int(r * out_channels)
-            for p in range(num_blocks):
-                attention = (c+1) % 2 == 0 and use_att and p == 0
-                if voxel_resolution is None:
-                    block = SharedMLP
-                else:
-                    block = functools.partial(PVConv, kernel_size=3, resolution=int(vr * voxel_resolution), attention=attention,
-                                              dropout=dropout,
-                                              with_se=with_se, with_se_relu=True,
-                                              normalize=normalize, eps=eps)
-
-                if c == 0:
-                    sa_blocks.append(block(in_channels, out_channels))
-                elif k ==0:
-                    sa_blocks.append(block(in_channels+embed_dim, out_channels))
+            if voxel_resolution is None:
+                block = SharedMLP
+            else:
+                block = functools.partial(PVConv, kernel_size=3, resolution=int(vr * voxel_resolution),
+                                          with_se=with_se, normalize=normalize, eps=eps)
+            for _ in range(num_blocks):
+                sa_blocks.append(block(in_channels, out_channels))
                 in_channels = out_channels
-                k += 1
             extra_feature_channels = in_channels
         num_centers, radius, num_neighbors, out_channels = sa_configs
         _out_channels = []
@@ -158,9 +147,8 @@ def create_pointnet2_sa_components(sa_blocks, extra_feature_channels, embed_dim=
         else:
             block = functools.partial(PointNetSAModule, num_centers=num_centers, radius=radius,
                                       num_neighbors=num_neighbors)
-        sa_blocks.append(block(in_channels=extra_feature_channels+(embed_dim if k==0 else 0 ), out_channels=out_channels,
+        sa_blocks.append(block(in_channels=extra_feature_channels, out_channels=out_channels,
                                include_coordinates=True))
-        c += 1
         in_channels = extra_feature_channels = sa_blocks[-1].out_channels
         if len(sa_blocks) == 1:
             sa_layers.append(sa_blocks[0])

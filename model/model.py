@@ -313,7 +313,7 @@ class PUNet(BaseModel):
 # PUNet -> PVCU
 # ---------------------------------------------------------------------------------------
 class PVCU(BaseModel):
-    def __init__(self, npoint=1024, up_ratio=4, use_normal=True, use_bn=False):
+    def __init__(self, npoint=1024, up_ratio=4, use_normal=False, use_bn=False):
         super().__init__()
 
         self.npoint = npoint
@@ -412,7 +412,7 @@ class PVCU(BaseModel):
         xyz, feats = points[:, :3, :].contiguous(), points
         
         print(xyz.shape)
-        print(feats.shape)
+        #print(feats.shape)
         # downsample
         l_xyz, l_feats = [xyz], [feats]
         for k in range(len(self.SA_modules)):
@@ -424,6 +424,11 @@ class PVCU(BaseModel):
             print(k, 'xyz', lk_xyz.shape)
             print(k, 'fea', lk_feats.shape)
 
+        print(l_xyz[0].shape)
+        print(l_xyz[1].shape)
+        print(l_feats[0].shape)
+        print(l_feats[1].shape)
+
         # upsample
         up_feats = []
         for k in range(len(self.FP_Modules)):
@@ -432,13 +437,18 @@ class PVCU(BaseModel):
 
         # aggregation
         # [xyz, l0, l1, l2, l3]
+        print(xyz.transpose(1, 2).contiguous().shape)
+        print(l_feats[1].shape)
+
         feats = torch.cat([
-            xyz.transpose(1, 2).contiguous(),
-            l_feats[1],
-            *up_feats], dim=1).unsqueeze(-1)  # bs, mid_ch, N, 1
+            xyz,
+            l_feats[1]
+            #*up_feats
+        ], dim=1).unsqueeze(-1)  # bs, mid_ch, N, 1
 
         # expansion
         r_feats = []
+        print(feats.shape)
         for k in range(len(self.FC_Modules)):
             feat_k = self.FC_Modules[k](feats) # bs, mid_ch, N, 1
             r_feats.append(feat_k)

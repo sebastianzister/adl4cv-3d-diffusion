@@ -322,7 +322,7 @@ class PVCU(BaseModel):
 
         self.npoints = [
             npoint, 
-            # npoint // 2, 
+            npoint // 2, 
             # npoint // 4, 
             # npoint // 8
         ]
@@ -343,7 +343,7 @@ class PVCU(BaseModel):
 
         sa_blocks = [
             (None, (2048, 0.05, 32, (32, 32, 64))),
-            # (None, (1024, 0.1, 32, (64, 64, 128))),
+            (None, (1024, 0.1, 32, (64, 64, 128))),
             #(None, (512, 0.2, 32, (128, 128, 256))),
             #(None, (256, 0.3, 32, (256, 256, 512))),
         ]
@@ -416,10 +416,6 @@ class PVCU(BaseModel):
         # downsample
         l_xyz, l_feats = [xyz], [feats]
         for k in range(len(self.SA_modules)):
-            # tmp_feats = l_feats[k]
-            # if k > 0: 
-            #     tmp_feats = torch.cat([l_xyz[k], l_feats[k]], dim=1)
-            # print(tmp_feats.shape)
             lk_feats, lk_xyz = self.SA_modules[k]((l_feats[k], l_xyz[k]))
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)

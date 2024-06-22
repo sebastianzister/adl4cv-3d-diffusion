@@ -261,7 +261,7 @@ class PUNet(BaseModel):
         feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
 
         print(xyz.shape)
-        print(feats)
+        print(feats.shape)
 
         # downsample
         l_xyz, l_feats = [xyz], [feats]
@@ -349,7 +349,7 @@ class PVCU(BaseModel):
         ]
         
         sa_layers, sa_in_channels, channels_sa_features, _ = create_pointnet2_sa_components(
-            sa_blocks=sa_blocks, extra_feature_channels=0, with_se=False, embed_dim=0,
+            sa_blocks=sa_blocks, extra_feature_channels=0, with_se=False, embed_dim=1,
             use_att=False, dropout=0.0, width_multiplier=1, voxel_resolution_multiplier=1
         )
 
@@ -404,25 +404,26 @@ class PVCU(BaseModel):
         #xyz = points[..., :3].contiguous()
         #feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
 
-        print(xyz)
-        print(feats)
+        #print(xyz)
+        #print(feats)
 
-	points = points.permute(0, 2, 1)    
+        points = points.permute(0, 2, 1)
 
-        t = torch.ones(points.shape[0]).to(inputs.device)
+        t = torch.ones(points.shape[0]).to(points.device)
 
-        temb = self.embedf(self.get_timestep_embedding(t, inputs.device))[:,:,None].expand(-1,-1,inputs.shape[-1])
+        #temb = self.embedf(self.get_timestep_embedding(t, points.device))[:,:,None].expand(-1,-1,inputs.shape[-1])
 
         # inputs : [B, in_channels + S, N]
         xyz, feats = points[:, :3, :].contiguous(), points
-
+        print(xyz.shape)
+        print(feats.shape)
         # downsample
         l_xyz, l_feats = [xyz], [feats]
         for k in range(len(self.SA_modules)):
             '''
             torch.Size([32, 2048, 3])
             None'''
-            lk_xyz, lk_feats = self.SA_modules[k]((l_feats[k], l_xyz[k], None))
+            lk_xyz, lk_feats = self.SA_modules[k]((l_feats[k], l_xyz[k]))
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)
 

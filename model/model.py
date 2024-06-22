@@ -442,7 +442,7 @@ class PVCU(BaseModel):
 
         feats = torch.cat([
             xyz,
-            l_feats[1]
+            l_xyz[1] #should be l_feats[1] but dimensions are wrong
             #*up_feats
         ], dim=1).unsqueeze(-1)  # bs, mid_ch, N, 1
 

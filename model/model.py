@@ -111,7 +111,7 @@ class PVCNN2Base(BaseModel):
         return emb
 
     def forward(self, inputs, visualize_latent=False):
-        inputs = inputs.permute(0, 2, 1)        
+        inputs = inputs.permute(0, 2, 1)
 
         t = torch.ones(inputs.shape[0]).to(inputs.device)
 
@@ -313,7 +313,7 @@ class PUNet(BaseModel):
 # PUNet -> PVCU
 # ---------------------------------------------------------------------------------------
 class PVCU(BaseModel):
-    def __init__(self, npoint=1024, up_ratio=4, use_normal=False, use_bn=False):
+    def __init__(self, npoint=1024, up_ratio=4, use_normal=True, use_bn=False):
         super().__init__()
 
         self.npoint = npoint
@@ -401,8 +401,20 @@ class PVCU(BaseModel):
                 npoints.append(npoint // 2 ** k)
 
         # points: bs, N, 3/6
-        xyz = points[..., :3].contiguous()
-        feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
+        #xyz = points[..., :3].contiguous()
+        #feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
+
+        print(xyz)
+        print(feats)
+
+	points = points.permute(0, 2, 1)    
+
+        t = torch.ones(points.shape[0]).to(inputs.device)
+
+        temb = self.embedf(self.get_timestep_embedding(t, inputs.device))[:,:,None].expand(-1,-1,inputs.shape[-1])
+
+        # inputs : [B, in_channels + S, N]
+        xyz, feats = points[:, :3, :].contiguous(), points
 
         # downsample
         l_xyz, l_feats = [xyz], [feats]
@@ -410,7 +422,7 @@ class PVCU(BaseModel):
             '''
             torch.Size([32, 2048, 3])
             None'''
-            lk_xyz, lk_feats = self.SA_modules[k](l_xyz[k], l_feats[k])
+            lk_xyz, lk_feats = self.SA_modules[k]((l_feats[k], l_xyz[k], None))
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)
 

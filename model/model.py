@@ -322,7 +322,7 @@ class PVCU(BaseModel):
 
         self.npoints = [
             npoint, 
-            # npoint // 2, 
+            npoint // 2, 
             # npoint // 4, 
             # npoint // 8
         ]
@@ -343,7 +343,7 @@ class PVCU(BaseModel):
 
         sa_blocks = [
             (None, (2048, 0.05, 32, (32, 32, 64))),
-            #(None, (1024, 0.1, 32, (64, 64, 128))),
+            (None, (1024, 0.1, 32, (64, 64, 128))),
             #(None, (512, 0.2, 32, (128, 128, 256))),
             #(None, (256, 0.3, 32, (256, 256, 512))),
         ]
@@ -416,18 +416,21 @@ class PVCU(BaseModel):
         # downsample
         l_xyz, l_feats = [xyz], [feats]
         for k in range(len(self.SA_modules)):
-            print("[k]")
-            lk_feats, lk_xyz  = self.SA_modules[k]((l_feats[k], l_xyz[k]))
+            tmp_feats = l_feats[k]
+            if k > 0: 
+                tmp_feats = torch.cat([l_xyz[k], l_feats[k]], dim=1)
+            print(tmp_feats.shape)
+            lk_feats, lk_xyz  = self.SA_modules[k]((l_xyz[k], tmp_feats))
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)
 
-            print(k, 'xyz', lk_xyz.shape)
-            print(k, 'fea', lk_feats.shape)
+            print(k, 'xyz  ', lk_xyz.shape)
+            print(k, 'feats', lk_feats.shape)
 
-        print(l_xyz[0].shape)
-        print(l_xyz[1].shape)
-        print(l_feats[0].shape)
-        print(l_feats[1].shape)
+        #print(l_xyz[0].shape)
+        #print(l_xyz[1].shape)
+        #print(l_feats[0].shape)
+        #print(l_feats[1].shape)
 
         # upsample
         up_feats = []
@@ -437,13 +440,15 @@ class PVCU(BaseModel):
 
         # aggregation
         # [xyz, l0, l1, l2, l3]
-        print(xyz.transpose(1, 2).contiguous().shape)
+        print("\nFC --------------------------")
+        print(xyz.shape)
         print(l_feats[1].shape)
+        print(l_feats[2].shape)
 
         feats = torch.cat([
-            xyz,
-            l_feats[1] #should be l_feats[1] but dimensions are wrong
-            #*up_feats
+            xyz.transpose(1, 2).contiguous(),
+            l_feats[1], #should be l_feats[1] but dimensions are wrong
+            *up_feats
         ], dim=1).unsqueeze(-1)  # bs, mid_ch, N, 1
 
         # expansion

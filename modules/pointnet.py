@@ -82,7 +82,10 @@ class PointNetSAModule(nn.Module):
         centers_coords = F.furthest_point_sample(coords, self.num_centers)
         features_list = []
         for grouper, mlp in zip(self.groupers, self.mlps):
+            print(features.shape)
+            print(coords.shape)
             groups = grouper(coords, centers_coords, features)
+            print(groups.shape)
             mlp_grouped = mlp(groups)
             if isinstance(mlp_grouped, (list, tuple)):
                 print(mlp_grouped[0].shape)

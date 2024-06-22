@@ -536,7 +536,7 @@ class PVCU2Base(BaseModel):
 
         return self.classifier(features).squeeze(2).permute(0, 2, 1)      
     
-class PVCU2(PVCUBase):
+class PVCU2(PVCU2Base):
     sa_blocks = [
         (None, (2048, 0.05, 32, (32, 64))),
         (None, (1024, 0.1, 32, (64, 128))),

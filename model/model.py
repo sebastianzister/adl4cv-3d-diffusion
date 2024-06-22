@@ -457,7 +457,7 @@ class PVCU(BaseModel):
 # ---------------------------------------------------------------------------------------
 # PVCNN -> PVCU
 # ---------------------------------------------------------------------------------------
-class PVCU2(BaseModel):
+class PVCU2Base(BaseModel):
     def __init__(self, num_classes, embed_dim, use_att, dropout=0.0,
                  extra_feature_channels=0, width_multiplier=1, voxel_resolution_multiplier=1):
         super().__init__()
@@ -536,43 +536,20 @@ class PVCU2(BaseModel):
 
         return self.classifier(features).squeeze(2).permute(0, 2, 1)      
     
-class PVCNN2(PVCNN2Base):
+class PVCU2(PVCUBase):
     sa_blocks = [
         (None, (2048, 0.05, 32, (32, 64))),
         (None, (1024, 0.1, 32, (64, 128))),
         (None, (512, 0.2, 32, (128, 256))),
         (None, (256, 0.3, 32, (256, 256, 512))),
     ]
-    '''
-    sa_blocks = [
-        ((32, 2, 32), (2048, 0.05, 32, (32, 64))),
-        (None, (1024, 0.1, 32, (64, 128))),
-    ]
-    sa_blocks = [
-        (None, (2048, 0.05, 32, (32, 64))),
-        (None, (1024, 0.1, 32, (64, 128))),
-        (None, (512, 0.2, 32, (128, 256))),
-        (None, (256, 0.3, 32, (256, 256, 512))),
-    ]
-    '''
+
     fp_blocks = [
         ((256, 256), (256, 3, 8)),
         ((256, 256), (256, 3, 8)),
         ((256, 128), (128, 2, 16)),
         ((128, 128, 64), (64, 2, 32)),
     ]
-    '''
-    fp_blocks = [
-        ((256, 256), (256, 3, 8)),
-        ((256, 256), (256, 3, 8)),
-    ]
-    fp_blocks = [
-        ((256, 256), (256, 3, None)),
-        ((256, 256), (256, 3, None)),
-        ((256, 128), (128, 2, None)),
-        ((128, 128, 64), (64, 2, None)),
-    ]
-    '''
 
     def __init__(self, num_classes=3, embed_dim=1, use_att=False,dropout=0.0, extra_feature_channels=0, width_multiplier=1,
                  voxel_resolution_multiplier=1):

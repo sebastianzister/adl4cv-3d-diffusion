@@ -401,20 +401,20 @@ class PVCU(BaseModel):
                 npoints.append(npoint // 2 ** k)
 
         # points: bs, N, 3/6
-        #xyz = points[..., :3].contiguous()
-        #feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
+        xyz = points[..., :3].contiguous()
+        feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
 
         #print(xyz)
         #print(feats)
 
-        points = points.permute(0, 2, 1)
+        #points = points.permute(0, 2, 1)
 
-        t = torch.ones(points.shape[0]).to(points.device)
-
+        #t = torch.ones(points.shape[0]).to(points.device)
         #temb = self.embedf(self.get_timestep_embedding(t, points.device))[:,:,None].expand(-1,-1,inputs.shape[-1])
 
         # inputs : [B, in_channels + S, N]
-        xyz, feats = points[:, :3, :].contiguous(), points
+        #xyz, feats = points[:, :3, :].contiguous(), points
+        
         print(xyz.shape)
         print(feats.shape)
         # downsample

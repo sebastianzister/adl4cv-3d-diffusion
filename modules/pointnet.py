@@ -91,7 +91,6 @@ class PointNetSAModule(nn.Module):
                 print(mlp_grouped.shape)
                 features_list.append(mlp_grouped.max(dim=-1).values)
             
-            
         if len(features_list) > 1:
             return torch.cat(features_list, dim=1), centers_coords
         else:

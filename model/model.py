@@ -322,9 +322,9 @@ class PVCU(BaseModel):
 
         self.npoints = [
             npoint, 
-            npoint // 2, 
-            npoint // 4, 
-            npoint // 8
+            # npoint // 2, 
+            # npoint // 4, 
+            # npoint // 8
         ]
 
         mlps = [
@@ -343,9 +343,9 @@ class PVCU(BaseModel):
 
         sa_blocks = [
             (None, (2048, 0.05, 32, (32, 32, 64))),
-            (None, (1024, 0.1, 32, (64, 64, 128))),
-            (None, (512, 0.2, 32, (128, 128, 256))),
-            (None, (256, 0.3, 32, (256, 256, 512))),
+            #(None, (1024, 0.1, 32, (64, 64, 128))),
+            #(None, (512, 0.2, 32, (128, 128, 256))),
+            #(None, (256, 0.3, 32, (256, 256, 512))),
         ]
         
         sa_layers, sa_in_channels, channels_sa_features, _ = create_pointnet2_sa_components(
@@ -360,9 +360,9 @@ class PVCU(BaseModel):
         for k in range(len(self.npoints)):
             self.SA_modules.append(
                 PointnetSAModule(
-                    npoint=self.npoints[k],
-                    radius=radius[k],
-                    nsample=nsamples[k],
+                    npoint=self.npoints[k], #2048
+                    radius=radius[k],       #0.05
+                    nsample=nsamples[k],    #32
                     mlp=[in_ch] + mlps[k],
                     use_xyz=True,
                     bn=use_bn))
@@ -416,9 +416,7 @@ class PVCU(BaseModel):
         # downsample
         l_xyz, l_feats = [xyz], [feats]
         for k in range(len(self.SA_modules)):
-            '''
-            torch.Size([32, 2048, 3])
-            None'''
+            print("[k]")
             lk_xyz, lk_feats = self.SA_modules[k]((l_feats[k], l_xyz[k]))
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)

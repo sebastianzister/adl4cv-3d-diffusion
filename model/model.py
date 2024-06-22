@@ -432,8 +432,8 @@ class PVCU(BaseModel):
         # upsample
         up_feats = []
         for k in range(len(self.FP_Modules)):
-            points_coords = xyz
-            centers_coords = l_xyz[k + 2]
+            points_coords = xyz.transpose(1, 2)
+            centers_coords = l_xyz[k + 2].transpose(1, 2)
             centers_features = None
             points_features = l_feats[k + 2]
 

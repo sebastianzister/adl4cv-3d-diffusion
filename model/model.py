@@ -370,6 +370,7 @@ class PVCU(BaseModel):
             in_ch = mlps[k][-1]
         '''
 
+        '''
         # upsamples for layer 2 ~ 4
         fp_blocks = [
             (64, None),
@@ -395,7 +396,6 @@ class PVCU(BaseModel):
                 PointnetFPModule(
                     mlp=[mlps[k + 1][-1], 64], 
                     bn=use_bn))
-        '''
 
         
         # feature Expansion

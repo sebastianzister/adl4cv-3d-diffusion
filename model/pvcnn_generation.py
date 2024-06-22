@@ -198,7 +198,7 @@ def create_pointnet2_fp_modules(fp_blocks, in_channels, sa_in_channels, embed_di
         fp_blocks.append(
             PointNetFPModule(in_channels=in_channels + sa_in_channels[-1 - fp_idx], out_channels=out_channels)
         )
-        in_channels = out_channels[-1]
+        in_channels = out_channels#[-1]
         if conv_configs is not None:
             out_channels, num_blocks, voxel_resolution = conv_configs
             out_channels = int(r * out_channels)

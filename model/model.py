@@ -349,7 +349,7 @@ class PVCU(BaseModel):
         ]
         
         sa_layers, sa_in_channels, channels_sa_features, _ = create_pointnet2_sa_components(
-            sa_blocks=sa_blocks, extra_feature_channels=0, with_se=False, embed_dim=1,
+            sa_blocks=sa_blocks, extra_feature_channels=0, with_se=False, embed_dim=0,
             use_att=False, dropout=0.0, width_multiplier=1, voxel_resolution_multiplier=1
         )
 
@@ -401,19 +401,15 @@ class PVCU(BaseModel):
                 npoints.append(npoint // 2 ** k)
 
         # points: bs, N, 3/6
-        xyz = points[..., :3].contiguous()
-        feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
-
-        #print(xyz)
-        #print(feats)
-
-        #points = points.permute(0, 2, 1)
+        #xyz = points[..., :3].contiguous()
+        #feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
 
         #t = torch.ones(points.shape[0]).to(points.device)
         #temb = self.embedf(self.get_timestep_embedding(t, points.device))[:,:,None].expand(-1,-1,inputs.shape[-1])
 
+        points = points.permute(0, 2, 1)
         # inputs : [B, in_channels + S, N]
-        #xyz, feats = points[:, :3, :].contiguous(), points
+        xyz, feats = points[:, :3, :].contiguous(), points
         
         print(xyz.shape)
         print(feats.shape)
@@ -457,104 +453,3 @@ class PVCU(BaseModel):
 # ---------------------------------------------------------------------------------------
 # PVCNN -> PVCU
 # ---------------------------------------------------------------------------------------
-class PVCU2Base(BaseModel):
-    def __init__(self, num_classes, embed_dim, use_att, dropout=0.0,
-                 extra_feature_channels=0, width_multiplier=1, voxel_resolution_multiplier=1):
-        super().__init__()
-        assert extra_feature_channels >= 0
-        self.embed_dim = embed_dim
-        self.in_channels = extra_feature_channels + 3
-
-        sa_layers, sa_in_channels, channels_sa_features, _ = create_pointnet2_sa_components(
-            sa_blocks=self.sa_blocks, extra_feature_channels=extra_feature_channels, with_se=True, embed_dim=embed_dim,
-            use_att=use_att, dropout=dropout,
-            width_multiplier=width_multiplier, voxel_resolution_multiplier=voxel_resolution_multiplier
-        )
-        self.sa_layers = nn.ModuleList(sa_layers)
-
-        self.global_att = None if not use_att else Attention(channels_sa_features, 8, D=1)
-
-        # only use extra features in the last fp module
-        sa_in_channels[0] = extra_feature_channels
-        fp_layers, channels_fp_features = create_pointnet2_fp_modules(
-            fp_blocks=self.fp_blocks, in_channels=channels_sa_features, sa_in_channels=sa_in_channels, with_se=True, embed_dim=embed_dim,
-            use_att=use_att, dropout=dropout,
-            width_multiplier=width_multiplier, voxel_resolution_multiplier=voxel_resolution_multiplier
-        )
-        self.fp_layers = nn.ModuleList(fp_layers)
-
-        # add 3 in_channels for the xyz
-        layers, _ = create_mlp_components(in_channels=channels_fp_features+3, out_channels=[128, dropout, num_classes], # was 0.5
-                                          classifier=False , dim=2, width_multiplier=width_multiplier, activations=[None], use_bn=False)
-        self.classifier = nn.Sequential(*layers)
-        self.embedf = nn.Sequential(
-            nn.Linear(embed_dim, embed_dim),
-            nn.LeakyReLU(0.1, inplace=True),
-            nn.Linear(embed_dim, embed_dim),
-        )
-
-    def get_timestep_embedding(self, timesteps, device):
-        assert len(timesteps.shape) == 1  # and timesteps.dtype == tf.int32
-
-        half_dim = self.embed_dim // 2
-        emb = np.log(10000) / (half_dim - 1)
-        emb = torch.from_numpy(np.exp(np.arange(0, half_dim) * -emb)).float().to(device)
-        # emb = tf.range(num_embeddings, dtype=DEFAULT_DTYPE)[:, None] * emb[None, :]
-        emb = timesteps[:, None] * emb[None, :]
-        emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=1)
-        if self.embed_dim % 2 == 1:  # zero pad
-            # emb = tf.concat([emb, tf.zeros([num_embeddings, 1])], axis=1)
-            emb = nn.functional.pad(emb, (0, 1), "constant", 0)
-        assert emb.shape == torch.Size([timesteps.shape[0], self.embed_dim])
-        return emb
-
-    def forward(self, inputs, visualize_latent=False):
-        inputs = inputs.permute(0, 2, 1)
-
-        t = torch.ones(inputs.shape[0]).to(inputs.device)
-
-        temb =  self.embedf(self.get_timestep_embedding(t, inputs.device))[:,:,None].expand(-1,-1,inputs.shape[-1])
-
-        # inputs : [B, in_channels + S, N]
-        coords, features = inputs[:, :3, :].contiguous(), inputs
-        coords_list, in_features_list = [], []
-        for i, sa_blocks  in enumerate(self.sa_layers):
-            in_features_list.append(features)
-            coords_list.append(coords)
-            if i == 0:
-                features, coords, temb = sa_blocks ((features, coords, temb))
-            else:
-                features, coords, temb = sa_blocks ((torch.cat([features,temb],dim=1), coords, temb))
-        in_features_list[0] = inputs[:, 3:, :].contiguous()
-        if self.global_att is not None:
-            features = self.global_att(features)
-        for fp_idx, fp_blocks  in enumerate(self.fp_layers):
-            features, coords, temb = fp_blocks((coords_list[-1-fp_idx], coords, torch.cat([features,temb],dim=1), in_features_list[-1-fp_idx], temb))
-
-        features = torch.cat([features, coords], dim=1).unsqueeze(2)
-        #print(features.shape)
-
-        return self.classifier(features).squeeze(2).permute(0, 2, 1)      
-    
-class PVCU2(PVCU2Base):
-    sa_blocks = [
-        (None, (2048, 0.05, 32, (32, 64))),
-        (None, (1024, 0.1, 32, (64, 128))),
-        (None, (512, 0.2, 32, (128, 256))),
-        (None, (256, 0.3, 32, (256, 256, 512))),
-    ]
-
-    fp_blocks = [
-        ((256, 256), (256, 3, 8)),
-        ((256, 256), (256, 3, 8)),
-        ((256, 128), (128, 2, 16)),
-        ((128, 128, 64), (64, 2, 32)),
-    ]
-
-    def __init__(self, num_classes=3, embed_dim=1, use_att=False,dropout=0.0, extra_feature_channels=0, width_multiplier=1,
-                 voxel_resolution_multiplier=1):
-        PVCNN2Base.__init__(self,
-            num_classes=num_classes, embed_dim=embed_dim, use_att=use_att,
-            dropout=dropout, extra_feature_channels=extra_feature_channels,
-            width_multiplier=width_multiplier, voxel_resolution_multiplier=voxel_resolution_multiplier
-        )

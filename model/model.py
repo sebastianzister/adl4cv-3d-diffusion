@@ -409,7 +409,8 @@ class PVCU(BaseModel):
 
         points = points.permute(0, 2, 1)
         # inputs : [B, in_channels + S, N]
-        xyz, feats = points[:, :3, :].contiguous(), points
+        xyz = points[:, :3, :].contiguous()
+        feats = points[:, 3:, :].contiguous()
         
         print(xyz.shape)
         #print(feats.shape)

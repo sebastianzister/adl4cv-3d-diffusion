@@ -103,7 +103,7 @@ class PointNetSAModule(nn.Module):
 class PointNetFPModule(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.mlp = SharedMLP(in_channels=in_channels, out_channels=out_channels, dim=1)
+        self.mlp = SharedMLP(in_channels=in_channels, out_channels=out_channels, dim=2)
 
     def forward(self, inputs):
         if len(inputs) == 3:

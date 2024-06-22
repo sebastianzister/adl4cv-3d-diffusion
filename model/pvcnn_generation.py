@@ -194,7 +194,7 @@ def create_pointnet2_fp_modules(fp_blocks, in_channels, sa_in_channels, embed_di
     fp_layers = []
     for fp_idx, (fp_configs, conv_configs) in enumerate(fp_blocks):
         fp_blocks = []
-        out_channels = tuple(int(r * oc) for oc in fp_configs)
+        out_channels = fp_configs#tuple(int(r * oc) for oc in fp_configs)
         fp_blocks.append(
             PointNetFPModule(in_channels=in_channels + sa_in_channels[-1 - fp_idx], out_channels=out_channels)
         )

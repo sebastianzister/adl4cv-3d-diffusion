@@ -73,21 +73,27 @@ class FreLoss(nn.Module):
         self.sht = th.RealSHT(self.nlat, self.nlon, grid='equiangular', lmax=self.lmax, mmax=self.mmax).to(device)
     
     def forward(self, pred, target):
+        print("TEST")
         pred_features, pred_sph = to_spherical(pred)
         target_features, target_sph = to_spherical(target)
         pred_sph[:, :, 1] -= math.pi
         target_sph[:, :, 1] -= math.pi
         
+        print("TEST")
         pred_dist, pred_idx = fre.three_nn(self.grid, pred_sph)
         target_dist, target_idx = fre.three_nn(self.grid, target_sph)
         
+        print("TEST")
         pred_dist = pred_dist/pred_dist.sum(dim=-1, keepdim=True)
         target_dist = target_dist/target_dist.sum(dim=-1, keepdim=True)
         
+        print("TEST")
         pred_interp = fre.three_interpolate(pred_features.contiguous(), pred_idx, pred_dist)
         target_interp = fre.three_interpolate(target_features.contiguous(), target_idx, target_dist)
         
+        print("TEST")
         pred_coeffs = self.sht.forward(pred_interp.reshape(-1, self.nlat, self.nlon))
         target_coeffs = self.sht.forward(target_interp.reshape(-1, self.nlat, self.nlon))
+        print("TEST")
         
         return torch.mean((pred_coeffs.real - target_coeffs.real)**2)

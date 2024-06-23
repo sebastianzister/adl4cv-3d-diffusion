@@ -16,7 +16,7 @@ class SharedMLP(nn.Module):
             bn = nn.BatchNorm1d
         elif dim == 2:
             conv = nn.Conv2d
-            bn = nn.BatchNorm2d
+            bn = nn.GroupNorm
         else:
             raise ValueError
         if not isinstance(out_channels, (list, tuple)):
@@ -25,8 +25,8 @@ class SharedMLP(nn.Module):
         for oc in out_channels:
             layers.extend([
                 conv(in_channels, oc, 1),
-                bn(oc),
-                nn.ReLU(True),
+                #bn(8, oc),
+                Swish(),
             ])
             in_channels = oc
         self.layers = nn.Sequential(*layers)
@@ -35,4 +35,5 @@ class SharedMLP(nn.Module):
         if isinstance(inputs, (list, tuple)):
             return (self.layers(inputs[0]), *inputs[1:])
         else:
+            print(inputs.shape)
             return self.layers(inputs)

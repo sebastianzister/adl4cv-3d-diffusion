@@ -14,17 +14,18 @@
         "type": "ShapeNetAugmentedDataLoader",
         "args":{
             "data_dir": "data/",
-            "batch_size": 16,
-            "shuffle": true,
-            "validation_split": 0.2,
-            "num_workers": 4,
-            "pin_memory": false
+            "batch_size": 1,
+            "shuffle": false,
+            "validation_split": 0.5,
+            "num_workers": 2,
+            "pin_memory": false,
+            "size": 2
         }
     },
     "optimizer": {
         "type": "Adam",
         "args":{
-            "lr": 0.0001,
+            "lr": 0.01,
             "weight_decay": 0.0005,
             "amsgrad": true
         }
@@ -52,8 +53,8 @@
         "early_stop": 10,
         "do_validation": false,
         "val_per_epochs" : 5,
-        "visualize_per_epochs" : 50,    
-        "visualize_train_batch" : 50,
+        "visualize_per_epochs" : 5000,    
+        "visualize_train_batch" : 5000,
 
         "tensorboard": true
     }

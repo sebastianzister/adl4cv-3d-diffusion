@@ -343,9 +343,9 @@ class PVCU(BaseModel):
         in_ch = 0 if not use_normal else 3
 
         sa_blocks = [
-            ((32, 2, 32), (2048, 0.05, 32, (32, 32, 64))),
-            ((64, 3, 16), (1024, 0.1, 32, (64, 64, 128))),
-            ((128, 3, 8), (512, 0.2, 32, (128, 128, 256))),
+            (None, (2048, 0.05, 32, (32, 32, 64))),
+            (None, (1024, 0.1, 32, (64, 64, 128))),
+            (None, (512, 0.2, 32, (128, 128, 256))),
             (None, (256, 0.3, 32, (256, 256, 512))),
         ]
         
@@ -430,7 +430,7 @@ class PVCU(BaseModel):
         points = points.permute(0, 2, 1)
         # inputs : [B, in_channels + S, N]
         xyz = points[:, :3, :].contiguous()
-        feats = points[:, :, :].contiguous()
+        feats = points[:, 3:, :].contiguous()
         
         # print(xyz.shape)
         #print(feats.shape)
@@ -455,22 +455,25 @@ class PVCU(BaseModel):
             points_coords = xyz
             points_features = None
             centers_coords = l_xyz[k + 2]
-            centers_features = l_feats[k + 2]
+            centers_features = l_feats[k + 2].permute(1, 0, 2)
 
             print("\nFP -----------------------")
             print(points_coords.shape)
             print("points_features.shape")
             print(centers_coords.shape)
             print(centers_features.shape)
-            upk_feats = self.FP_Modules[k]((centers_coords, points_coords, centers_features))
-            up_feats.append(upk_feats)
+            upk_feats, upk_coords = self.FP_Modules[k]((centers_coords, points_coords, centers_features))
+            print(upk_feats.shape)
+            print(upk_coords.shape)
+            upk_feats1 = torch.cat([upk_feats.permute(1, 0, 2), upk_coords], dim=1)
+            up_feats.append(upk_feats1)
 
         # aggregation
         # [xyz, l0, l1, l2, l3]
-        # print("\nFC --------------------------")
-        # print(xyz.shape)
-        # print(l_feats[1].shape)
-        # print(up_feats[0].shape)
+        print("\nFC --------------------------")
+        print(xyz.shape)
+        print(l_feats[1].shape)
+        print(up_feats[0].shape)
 
         feats = torch.cat([
             xyz,

@@ -1,5 +1,5 @@
 {
-    "name": "PVCU Test",
+    "name": "PVCU Full",
     "n_gpu": 1,
 
     "arch": {
@@ -14,19 +14,18 @@
         "type": "ShapeNetAugmentedDataLoader",
         "args":{
             "data_dir": "data/",
-            "batch_size": 1,
+            "batch_size": 16,
             "shuffle": true,
-            "validation_split": 0.5,
-            "num_workers": 0,
-            "pin_memory": false,
-            "size" : 2
+            "validation_split": 0.2,
+            "num_workers": 4,
+            "pin_memory": false
         }
     },
     "optimizer": {
         "type": "Adam",
         "args":{
-            "lr": 0.01,
-            "weight_decay": 0,
+            "lr": 0.0001,
+            "weight_decay": 0.0005,
             "amsgrad": true
         }
     },
@@ -36,24 +35,25 @@
     ],
     "lr_scheduler": {
         "type": "StepLR",
+        "pass_optimizer": true,
         "args": {
-            "step_size": 1000,
-            "gamma": 0.1
+            "gamma": 0.99654026282787,
+            "step_size": 500
         }
     },
     "trainer": {
-        "epochs": 1000,
+        "epochs": 500,
 
         "save_dir": "saved/",
-        "save_period": 200,
+        "save_period": 100,
         "verbosity": 2,
         
         "monitor": "min val_loss",
-        "early_stop": 0,
+        "early_stop": 10,
         "do_validation": false,
         "val_per_epochs" : 5,
-        "visualize_per_epochs" : 5000,    
-        "visualize_train_batch" : 5000,
+        "visualize_per_epochs" : 50,    
+        "visualize_train_batch" : 50,
 
         "tensorboard": true
     }

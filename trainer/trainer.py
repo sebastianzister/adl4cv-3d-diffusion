@@ -97,6 +97,8 @@ class Trainer(BaseTrainer):
             
         # end timer
         print("Epoch {} took {:.2f} seconds".format(epoch, time.time() - start_time))
+        self.writer.set_step(epoch, 'train_epoch')
+        self.writer.add_scalar('loss', log['loss'])
         return log
 
     def _valid_epoch(self, epoch):
@@ -129,7 +131,10 @@ class Trainer(BaseTrainer):
         # add histogram of model parameters to the tensorboard
 #        for name, p in self.model.named_parameters():
 #            self.writer.add_histogram(name, p, bins='auto')
-        return self.valid_metrics.result()
+        log = self.valid_metrics.result()
+        self.writer.set_step(epoch, 'valid_epoch')
+        self.writer.add_scalar('loss', log['loss'])
+        return log
     
     def _visualize_val_batch(self, epoch):
         self.model.eval()

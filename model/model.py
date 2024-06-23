@@ -378,7 +378,7 @@ class PVCU(BaseModel):
         ]
 
         channels_sa_features = 0
-        sa_in_channels = [0, 128-64, 256-64, 512]
+        sa_in_channels = [0, 512-64, 256-64, 128]
         print(channels_sa_features)
         print(sa_in_channels)
 
@@ -462,7 +462,7 @@ class PVCU(BaseModel):
             print("points_features.shape")
             print(centers_coords.shape)
             print(centers_features.shape)
-            upk_feats = self.FP_Modules[k]((points_coords, centers_coords, centers_features))
+            upk_feats = self.FP_Modules[k]((centers_coords, points_coords, centers_features))
             up_feats.append(upk_feats)
 
         # aggregation

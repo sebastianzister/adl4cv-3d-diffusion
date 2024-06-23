@@ -452,17 +452,17 @@ class PVCU(BaseModel):
         # upsample
         up_feats = []
         for k in range(len(self.FP_Modules)):
-            points_coords = xyz.transpose(1, 2).contiguous()
-            centers_coords = l_xyz[k + 2].transpose(1, 2).contiguous()
-            centers_features = None
-            points_features = l_feats[k + 2]
+            points_coords = xyz
+            points_features = None
+            centers_coords = l_xyz[k + 2]
+            centers_features = l_feats[k + 2]
 
-            # print("\nFP -----------------------")
-            # print(points_coords.shape)
-            # print(centers_coords.shape)
-            # print("centers_features.shape: None")
-            # print(points_features.shape)
-            upk_feats = self.FP_Modules[k](points_coords, centers_coords, centers_features, points_features)
+            print("\nFP -----------------------")
+            print(points_coords.shape)
+            print(centers_coords.shape)
+            print("centers_features.shape: None")
+            print(points_features.shape)
+            upk_feats = self.FP_Modules[k]((points_coords, centers_coords, centers_features))
             up_feats.append(upk_feats)
 
         # aggregation

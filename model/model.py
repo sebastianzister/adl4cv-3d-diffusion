@@ -459,9 +459,9 @@ class PVCU(BaseModel):
 
             print("\nFP -----------------------")
             print(points_coords.shape)
+            print("points_features.shape")
             print(centers_coords.shape)
-            print("centers_features.shape: None")
-            print(points_features.shape)
+            print(centers_features.shape)
             upk_feats = self.FP_Modules[k]((points_coords, centers_coords, centers_features))
             up_feats.append(upk_feats)
 

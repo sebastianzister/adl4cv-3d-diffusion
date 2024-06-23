@@ -370,7 +370,6 @@ class PVCU(BaseModel):
             in_ch = mlps[k][-1]
         '''
 
-        '''
         # upsamples for layer 2 ~ 4
         fp_blocks = [
             (64, None),
@@ -379,7 +378,7 @@ class PVCU(BaseModel):
         ]
 
         channels_sa_features = 0
-        sa_in_channels = [0, 128, 256, 512]
+        sa_in_channels = [0, 128-64, 256-64, 512]
         print(channels_sa_features)
         print(sa_in_channels)
 
@@ -396,7 +395,7 @@ class PVCU(BaseModel):
                 PointnetFPModule(
                     mlp=[mlps[k + 1][-1], 64], 
                     bn=use_bn))
-
+        '''
         
         # feature Expansion
         in_ch = len(self.npoints) * 64 + 3 # 4 layers + input xyz

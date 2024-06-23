@@ -261,8 +261,8 @@ class PUNet(BaseModel):
         xyz = points[..., :3].contiguous()
         feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
 
-        print(xyz.shape)
-        print(feats.shape)
+        # print(xyz.shape)
+        # print(feats.shape)
 
         # downsample
         l_xyz, l_feats = [xyz], [feats]
@@ -271,8 +271,8 @@ class PUNet(BaseModel):
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)
 
-            print(k, 'xyz', lk_xyz.shape)
-            print(k, 'fea', lk_feats.shape)
+            # print(k, 'xyz', lk_xyz.shape)
+            # print(k, 'fea', lk_feats.shape)
 
         '''
         0 xyz torch.Size([32, 2048, 3])
@@ -343,10 +343,10 @@ class PVCU(BaseModel):
         in_ch = 0 if not use_normal else 3
 
         sa_blocks = [
-            (None, (2048, 0.05, 32, (32, 32, 64))),
-            ((64, 1, 16), (1024, 0.1, 32, (64, 64, 128))),
-            ((128, 1, 8), (512, 0.2, 32, (128, 128, 256))),
-            ((256, 1, 4), (256, 0.3, 32, (256, 256, 512))),
+            ((32, 2, 32), (2048, 0.05, 32, (32, 32, 64))),
+            ((64, 3, 16), (1024, 0.1, 32, (64, 64, 128))),
+            ((128, 3, 8), (512, 0.2, 32, (128, 128, 256))),
+            (None, (256, 0.3, 32, (256, 256, 512))),
         ]
         
         sa_layers, sa_in_channels, channels_sa_features, _ = create_pointnet2_sa_components(
@@ -355,7 +355,7 @@ class PVCU(BaseModel):
         )
 
         self.SA_modules = nn.ModuleList(sa_layers)
-        print(self.SA_modules)
+
         '''
         self.SA_modules = nn.ModuleList()
         for k in range(len(self.npoints)):
@@ -431,9 +431,9 @@ class PVCU(BaseModel):
         points = points.permute(0, 2, 1)
         # inputs : [B, in_channels + S, N]
         xyz = points[:, :3, :].contiguous()
-        feats = points[:, 3:, :].contiguous()
+        feats = points[:, :, :].contiguous()
         
-        #print(xyz.shape)
+        # print(xyz.shape)
         #print(feats.shape)
         # downsample
         l_xyz, l_feats = [xyz], [feats]
@@ -441,6 +441,9 @@ class PVCU(BaseModel):
             lk_feats, lk_xyz = self.SA_modules[k]((l_feats[k], l_xyz[k]))
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)
+
+            # print(k, 'xyz  ', lk_xyz.shape)
+            # print(k, 'feats', lk_feats.shape)
 
         #print(l_xyz[0].shape)
         #print(l_xyz[1].shape)
@@ -455,11 +458,20 @@ class PVCU(BaseModel):
             centers_features = None
             points_features = l_feats[k + 2]
 
+            # print("\nFP -----------------------")
+            # print(points_coords.shape)
+            # print(centers_coords.shape)
+            # print("centers_features.shape: None")
+            # print(points_features.shape)
             upk_feats = self.FP_Modules[k](points_coords, centers_coords, centers_features, points_features)
             up_feats.append(upk_feats)
 
         # aggregation
         # [xyz, l0, l1, l2, l3]
+        # print("\nFC --------------------------")
+        # print(xyz.shape)
+        # print(l_feats[1].shape)
+        # print(up_feats[0].shape)
 
         feats = torch.cat([
             xyz,
@@ -469,7 +481,7 @@ class PVCU(BaseModel):
 
         # expansion
         r_feats = []
-        #print(feats.shape)
+        # print(feats.shape)
         for k in range(len(self.FC_Modules)):
             feat_k = self.FC_Modules[k](feats) # bs, mid_ch, N, 1
             r_feats.append(feat_k)

@@ -462,10 +462,13 @@ class PVCU(BaseModel):
             print("points_features.shape")
             print(centers_coords.shape)
             print(centers_features.shape)
+            
+            # order should be: centers_coords, points_coords, centers_features (according to pvd, but then 1024 points are missing)
             upk_feats, upk_coords = self.FP_Modules[k]((points_coords, centers_coords, centers_features))
             print(upk_feats.shape)
             print(upk_coords.shape)
-            upk_feats1 = torch.cat([upk_feats.permute(1, 0, 2), upk_coords], dim=1)
+            #pvd concats feats and coords, but we don't need to?
+            #upk_feats1 = torch.cat([upk_feats.permute(1, 0, 2), upk_coords], dim=1)
             up_feats.append(upk_feats.permute(1, 0, 2))
 
         # aggregation

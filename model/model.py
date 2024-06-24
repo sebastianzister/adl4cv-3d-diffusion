@@ -343,9 +343,9 @@ class PVCU(BaseModel):
         in_ch = 0 if not use_normal else 3
 
         sa_blocks = [
-            (None, (2048, 0.05, 32, (32, 32, 64))),
-            (None, (1024, 0.1, 32, (64, 64, 128))),
-            (None, (512, 0.2, 32, (128, 128, 256))),
+            ((32, 2, 32), (2048, 0.05, 32, (32, 32, 64))),
+            ((64, 3, 16), (1024, 0.1, 32, (64, 64, 128))),
+            ((128, 3, 8), (512, 0.2, 32, (128, 128, 256))),
             (None, (256, 0.3, 32, (256, 256, 512))),
         ]
         
@@ -372,9 +372,9 @@ class PVCU(BaseModel):
 
         # upsamples for layer 2 ~ 4
         fp_blocks = [
-            ((64, 64), None), #(256, 1, 8)),
-            ((64, 64), None), #(128, 1, 16)),
-            ((64, 64), None), #(64, 1, 32)),
+            ((64, 64), (64, 1, 16)),
+            ((64, 64), (64, 1, 16)),
+            ((64, 64), (64, 1, 16)),
         ]
 
         channels_sa_features = 0
@@ -430,7 +430,7 @@ class PVCU(BaseModel):
         points = points.permute(0, 2, 1)
         # inputs : [B, in_channels + S, N]
         xyz = points[:, :3, :].contiguous()
-        feats = points[:, 3:, :].contiguous()
+        feats = points[:, :, :].contiguous()
         
         # print(xyz.shape)
         #print(feats.shape)

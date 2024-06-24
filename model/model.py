@@ -379,8 +379,8 @@ class PVCU(BaseModel):
 
         channels_sa_features = 0
         sa_in_channels = [0, 512-64, 256-64, 128]
-        print(channels_sa_features)
-        print(sa_in_channels)
+        # print(channels_sa_features)
+        # print(sa_in_channels)
 
         fp_layers, channels_fp_features = create_pointnet2_fp_modules(
             fp_blocks=fp_blocks, in_channels=channels_sa_features, sa_in_channels=sa_in_channels, with_se=False, 
@@ -424,9 +424,6 @@ class PVCU(BaseModel):
         #xyz = points[..., :3].contiguous()
         #feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
 
-        #t = torch.ones(points.shape[0]).to(points.device)
-        #temb = self.embedf(self.get_timestep_embedding(t, points.device))[:,:,None].expand(-1,-1,inputs.shape[-1])
-
         points = points.permute(0, 2, 1)
         # inputs : [B, in_channels + S, N]
         xyz = points[:, :3, :].contiguous()
@@ -457,26 +454,26 @@ class PVCU(BaseModel):
             centers_coords = l_xyz[k + 2]
             centers_features = l_feats[k + 2] #.permute(1, 0, 2)
 
-            print("\nFP -----------------------")
-            print(points_coords.shape)
-            print("points_features.shape")
-            print(centers_coords.shape)
-            print(centers_features.shape)
+            # print("\nFP -----------------------")
+            # print(points_coords.shape)
+            # print("points_features.shape")
+            # print(centers_coords.shape)
+            # print(centers_features.shape)
             
             # order should be: centers_coords, points_coords, centers_features (according to pvd, but then 1024 points are missing)
             upk_feats, upk_coords = self.FP_Modules[k]((points_coords, centers_coords, centers_features))
-            print(upk_feats.shape)
-            print(upk_coords.shape)
+            # print(upk_feats.shape)
+            # print(upk_coords.shape)
             #pvd concats feats and coords, but we don't need to?
             #upk_feats1 = torch.cat([upk_feats.permute(1, 0, 2), upk_coords], dim=1)
             up_feats.append(upk_feats) #.permute(1, 0, 2))
 
         # aggregation
         # [xyz, l0, l1, l2, l3]
-        print("\nFC --------------------------")
-        print(xyz.shape)
-        print(l_feats[1].shape)
-        print(up_feats[0].shape)
+        # print("\nFC --------------------------")
+        # print(xyz.shape)
+        # print(l_feats[1].shape)
+        # print(up_feats[0].shape)
 
         feats = torch.cat([
             xyz,

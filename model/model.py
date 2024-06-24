@@ -324,8 +324,8 @@ class PVCU(BaseModel):
         self.npoints = [
             npoint, 
             npoint // 2, 
-#            npoint // 4, 
-#            npoint // 8
+            npoint // 4, 
+            npoint // 8
         ]
 
         mlps = [
@@ -345,8 +345,8 @@ class PVCU(BaseModel):
         sa_blocks = [
             (None, (2048, 0.05, 32, (32, 32, 64))),
             (None, (1024, 0.1, 32, (64, 64, 128))),
-#            (None, (512, 0.2, 32, (128, 128, 256))),
-#            (None, (256, 0.3, 32, (256, 256, 512))),
+            (None, (512, 0.2, 32, (128, 128, 256))),
+            (None, (256, 0.3, 32, (256, 256, 512))),
         ]
         
         sa_layers, sa_in_channels, channels_sa_features, _ = create_pointnet2_sa_components(
@@ -373,8 +373,8 @@ class PVCU(BaseModel):
         # upsamples for layer 2 ~ 4
         fp_blocks = [
             ((64, 64), None),
-#            ((64, 64), None),
-#            ((64, 64), None),
+            ((64, 64), None),
+            ((64, 64), None),
         ]
 
         channels_sa_features = 0

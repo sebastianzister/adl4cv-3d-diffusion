@@ -13,7 +13,7 @@ class SharedMLP(nn.Module):
         super().__init__()
         if dim == 1:
             conv = nn.Conv1d
-            bn = nn.BatchNorm1d
+            bn = nn.GroupNorm
         elif dim == 2:
             conv = nn.Conv2d
             bn = nn.GroupNorm
@@ -25,7 +25,7 @@ class SharedMLP(nn.Module):
         for oc in out_channels:
             layers.extend([
                 conv(in_channels, oc, 1),
-                #bn(8, oc),
+                bn(8, oc),
                 Swish(),
             ])
             in_channels = oc

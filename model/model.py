@@ -344,8 +344,8 @@ class PVCU(BaseModel):
 
         sa_blocks = [
             (None, (2048, 0.05, 32, (32, 32, 64))),
-            ((64, 1, 16), (1024, 0.1, 32, (64, 64, 128))),
-            ((128, 1, 8), (512, 0.2, 32, (128, 128, 256))),
+            (None, (1024, 0.1, 32, (64, 64, 128))),
+            (None, (512, 0.2, 32, (128, 128, 256))),
             (None, (256, 0.3, 32, (256, 256, 512))),
         ]
         
@@ -455,7 +455,7 @@ class PVCU(BaseModel):
             points_coords = xyz
             points_features = None
             centers_coords = l_xyz[k + 2]
-            centers_features = l_feats[k + 2].permute(1, 0, 2)
+            centers_features = l_feats[k + 2] #.permute(1, 0, 2)
 
             print("\nFP -----------------------")
             print(points_coords.shape)
@@ -469,7 +469,7 @@ class PVCU(BaseModel):
             print(upk_coords.shape)
             #pvd concats feats and coords, but we don't need to?
             #upk_feats1 = torch.cat([upk_feats.permute(1, 0, 2), upk_coords], dim=1)
-            up_feats.append(upk_feats.permute(1, 0, 2))
+            up_feats.append(upk_feats) #.permute(1, 0, 2))
 
         # aggregation
         # [xyz, l0, l1, l2, l3]

@@ -100,7 +100,7 @@ class PointNetSAModule(nn.Module):
 class PointNetFPModule(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.mlp = SharedMLP(in_channels=in_channels, out_channels=out_channels, dim=2)
+        self.mlp = SharedMLP(in_channels=in_channels, out_channels=out_channels, dim=1)
 
     def forward(self, inputs):
         if len(inputs) == 3:
@@ -109,6 +109,7 @@ class PointNetFPModule(nn.Module):
         else:
             points_coords, centers_coords, centers_features, points_features = inputs
         interpolated_features = F.nearest_neighbor_interpolate(points_coords, centers_coords, centers_features)
+        print(interpolated_features.shape)
         if points_features is not None:
             interpolated_features = torch.cat(
                 [interpolated_features, points_features], dim=1

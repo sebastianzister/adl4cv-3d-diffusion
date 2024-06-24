@@ -109,7 +109,7 @@ class PointNetFPModule(nn.Module):
         else:
             points_coords, centers_coords, centers_features, points_features = inputs
         interpolated_features = F.nearest_neighbor_interpolate(points_coords, centers_coords, centers_features)
-        print(interpolated_features.shape)
+        
         if points_features is not None:
             interpolated_features = torch.cat(
                 [interpolated_features, points_features], dim=1

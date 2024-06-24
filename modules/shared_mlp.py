@@ -35,5 +35,4 @@ class SharedMLP(nn.Module):
         if isinstance(inputs, (list, tuple)):
             return (self.layers(inputs[0]), *inputs[1:])
         else:
-            print(inputs.shape)
             return self.layers(inputs)

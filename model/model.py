@@ -372,9 +372,9 @@ class PVCU(BaseModel):
 
         # upsamples for layer 2 ~ 4
         fp_blocks = [
-            (64, None),
-            (64, None),
-            (64, None),
+            ((64, 64), None),
+            ((64, 64), None),
+            ((64, 64), None),
         ]
 
         channels_sa_features = 0

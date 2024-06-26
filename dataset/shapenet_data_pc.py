@@ -7,6 +7,9 @@ import random
 import open3d as o3d
 import numpy as np
 import torch.nn.functional as F
+import torch
+
+import time
 
 # taken from https://github.com/optas/latent_3d_points/blob/8e8f29f8124ed5fc59439e8551ba7ef7567c9a37/src/in_out.py
 synsetid_to_cate = {
@@ -240,7 +243,7 @@ class ShapeNet15kPointCloudsAugmented(ShapeNet15kPointClouds):
                  random_subsample=False,
                  all_points_mean=None, all_points_std=None,
                  use_mask=False, length=None, down_ratio=2, random_downsample=False,
-                 noise=False):
+                 noise=False, calc_harmonics=False):
         super(ShapeNet15kPointCloudsAugmented, self).__init__(
             root_dir, categories, tr_sample_size, te_sample_size,
             split, scale, normalize_per_shape, normalize_std_per_axis,
@@ -265,10 +268,34 @@ class ShapeNet15kPointCloudsAugmented(ShapeNet15kPointClouds):
 #            self.input[..., :3] /= np.expand_dims(furthest_distance, axis=-1
         self.random_downsample = random_downsample
         self.noise = noise
+        
+        import sys
+        sys.path.append('../')
+        from pytorch_fre import pytorch_fre_modules as fre
+        freCalc = fre.FreCalc(256, 512, 50, 50)
+        tmp_time = time.time()
+        print("Calculating harmonics for training data")
+        self.train_harmonics = torch.tensor(np.zeros((len(self.train_points), 50, 50)))
+        
+        if calc_harmonics:
+            batch_size = 16
+            num_batches = (len(self.train_points) + batch_size - 1) // batch_size
     
+            for i in range(num_batches):
+                print("Batch {}/{}".format(i, num_batches))
+                start_idx = i * batch_size
+                end_idx = min((i + 1) * batch_size, len(self.train_points))
+                batch_points = self.train_points[start_idx:end_idx]
+                batch_harmonics = freCalc(torch.tensor(batch_points).cuda())
+                self.train_harmonics[start_idx:end_idx] = batch_harmonics
+    
+            print("Done calculating harmonics for training data in {:.2f} seconds".format(time.time() - tmp_time))
+        
+        #self.train_points = torch.tensor(self.train_points).float().cuda()
     def __getitem__(self, idx):
 
         y = self.train_points[idx]
+        y_h = self.train_harmonics[idx]
         if self.random_subsample:
             tr_idxs = np.random.choice(y.shape[0], self.tr_sample_size)
         else:
@@ -288,7 +315,7 @@ class ShapeNet15kPointCloudsAugmented(ShapeNet15kPointClouds):
         #noise = torch.randn_like(x) * 0.01
         #x = x + noise
 
-        return (x, y)
+        return (x, y, y_h)
 
 
 class PointCloudMasks(object):

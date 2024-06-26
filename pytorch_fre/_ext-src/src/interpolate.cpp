@@ -1,7 +1,10 @@
 #include "interpolate.h"
 #include "utils.h"
 
-void three_nn_kernel_wrapper(int b, int n, int m, const float *unknown,
+//void three_nn_kernel_wrapper(int b, int n, int m, const float *unknown,
+//                             const float *known, float *dist2, int *idx);
+//
+void three_nn_kernel_wrapper(int b, int n, int m, int nlat, int nlon,
                              const float *known, float *dist2, int *idx);
 void three_interpolate_kernel_wrapper(int b, int c, int m, int n,
                                       const float *points, const int *idx,
@@ -28,9 +31,15 @@ std::vector<at::Tensor> three_nn(at::Tensor unknowns, at::Tensor knows) {
       torch::zeros({unknowns.size(0), unknowns.size(1), 3},
                    at::device(unknowns.device()).dtype(at::ScalarType::Float));
 
+  // CHANGE HARDCODED VALUES
   if (unknowns.is_cuda()) {
+    //three_nn_kernel_wrapper(unknowns.size(0), unknowns.size(1), knows.size(1),
+    //                        256, 512,
+    //                        unknowns.data_ptr<float>(), knows.data_ptr<float>(),
+    //                        dist2.data_ptr<float>(), idx.data_ptr<int>());
     three_nn_kernel_wrapper(unknowns.size(0), unknowns.size(1), knows.size(1),
-                            unknowns.data_ptr<float>(), knows.data_ptr<float>(),
+                            256, 512,
+                            knows.data_ptr<float>(),
                             dist2.data_ptr<float>(), idx.data_ptr<int>());
   } else {
     AT_ASSERT(false, "CPU not supported");

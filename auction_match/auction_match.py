@@ -8,7 +8,7 @@ sources = [
     os.path.join(script_dir, "auction_match_gpu.cu"),
 ]
 
-am = load(name="am", sources=sources)
+am = load(name="am", sources=sources, extra_cuda_cflags = ['-allow-unsupported-compiler'])
 
 class AuctionMatch(torch.autograd.Function):
     @staticmethod

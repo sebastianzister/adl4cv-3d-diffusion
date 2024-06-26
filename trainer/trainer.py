@@ -48,17 +48,28 @@ class Trainer(BaseTrainer):
 
         self.model.train()
         self.train_metrics.reset()
-        for batch_idx, (data, target) in enumerate(self.data_loader):
-            data, target = data.to(self.device), target.to(self.device)
+        for batch_idx, (data, target, target_harmonics) in enumerate(self.data_loader):
+            data, target, target_harmonics = data.to(self.device), target.to(self.device), target_harmonics.to(self.device)
             self.optimizer.zero_grad()
             
+            #tmp_time = time.time()
             output = self.model(data)
+            #torch.cuda.synchronize()
+            #print("Model took {:.2f} seconds".format(time.time() - tmp_time))
+
             
             # changed to multiple losses
             tot_loss = 0
             losses = []
             for i, c in enumerate(self.criterion):
-                loss = self.criterion_weight[i] * c(output, target)
+                #tmp_time = time.time()
+                # TODO: change this to a more general solution
+                if c.__name__ == 'fre_loss':
+                    loss = self.criterion_weight[i] * c(output, target_harmonics)
+                else:
+                    loss = self.criterion_weight[i] * c(output, target)
+                #torch.cuda.synchronize()
+                #print("Criterion {} took {:.2f} seconds".format(i, time.time() - tmp_time))
                 losses.append(loss)
                 tot_loss += loss
 
@@ -82,7 +93,8 @@ class Trainer(BaseTrainer):
             
             # visualize first train batch
             if self.config['trainer']['visualize_train_batch'] is not None and epoch % self.config['trainer']['visualize_train_batch'] == 0 and batch_idx == 0:
-                self.writer.add_image('train_batch', visualize_batch(data.cpu().detach(), output.cpu().detach(), target.cpu().detach()))
+                vis_size = min(16, data.size(0))
+                self.writer.add_image('train_batch', visualize_batch(data[:vis_size].cpu().detach(), output[:vis_size].cpu().detach(), target[:vis_size].cpu().detach()))
         
             if batch_idx == self.len_epoch:
                 break
@@ -101,7 +113,11 @@ class Trainer(BaseTrainer):
             self._visualize_val_batch(epoch)
 
         if self.lr_scheduler is not None:
-            self.lr_scheduler.step()
+            if self.config['lr_scheduler']['pass_optimizer']:
+                self.lr_scheduler.step(val_log['loss'])
+            else:
+                self.lr_scheduler.step()
+            self.writer.add_scalar('learning_rate', self.lr_scheduler.get_last_lr()[0])
             
         # end timer
         print("Epoch {} took {:.2f} seconds".format(epoch, time.time() - start_time))
@@ -117,8 +133,8 @@ class Trainer(BaseTrainer):
         self.model.eval()
         self.valid_metrics.reset()
         with torch.no_grad():
-            for batch_idx, (data, target) in enumerate(self.valid_data_loader):
-                data, target = data.to(self.device), target.to(self.device)
+            for batch_idx, (data, target, target_harmonics) in enumerate(self.valid_data_loader):
+                data, target, target_harmonics = data.to(self.device), target.to(self.device), target_harmonics.to(self.device)
 
                 output = self.model(data)
                 
@@ -126,7 +142,11 @@ class Trainer(BaseTrainer):
                 
                 loss = 0
                 for i, c in enumerate(self.criterion):
-                    loss += self.criterion_weight[i] * c(output, target)
+                    # TODO: change this to a more general solution
+                    if c.__name__ == 'fre_loss':
+                        loss += self.criterion_weight[i] * c(output, target_harmonics)
+                    else:
+                        loss += self.criterion_weight[i] * c(output, target)
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('loss', loss.item())
@@ -146,13 +166,14 @@ class Trainer(BaseTrainer):
     def _visualize_val_batch(self, epoch):
         self.model.eval()
         with torch.no_grad():
-            batch_idx, (data, target) = next(enumerate(self.valid_data_loader))
+            batch_idx, (data, target, _) = next(enumerate(self.valid_data_loader))
             data, target = data.to(self.device), target.to(self.device)
             
             output = self.model(data, visualize_latent=True)
             
             self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'visualize')
-            self.writer.add_image('target_result', visualize_batch(data.cpu(), output.cpu(), target.cpu()))
+            vis_size = min(16, data.size(0))
+            self.writer.add_image('target_result', visualize_batch(data[:vis_size].cpu().detach(), output[:vis_size].cpu().detach(), target[:vis_size].cpu().detach()))
 
 
     def _progress(self, batch_idx):

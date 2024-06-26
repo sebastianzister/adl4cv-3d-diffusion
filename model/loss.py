@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-#from metrics.PyTorchEMD.emd import earth_mover_distance
+from metrics.PyTorchEMD.emd import earth_mover_distance
 from metrics.ChamferDistancePytorch.chamfer3D.dist_chamfer_3D import chamfer_3DFunction
 
 # repulsion loss
@@ -9,14 +9,18 @@ from pointnet2_ops import pointnet2_utils
 #from pointnet2 import pointnet2_utils
 from knn_cuda import KNN
 
-from pytorch_fre.pytorch_fre_modules import FreLoss
+from pytorch_fre.pytorch_fre_modules import FreLossPrecomputed, FreLoss
 import math
 
 # workaround to get pi
 torch.pi = math.pi
-freLoss = FreLoss(512, 1024, 50, 50)
+#freLoss = FreLoss(512, 1024, 50, 50)
+freLoss = None#FreLoss(256, 512, 50, 50)
 
 def fre_loss(output, target):
+    global freLoss
+    if freLoss is None:
+        freLoss = FreLossPrecomputed(256, 512, 50, 50)
     return freLoss(output, target)
 
 
@@ -60,8 +64,8 @@ def emd_re_loss(output, target):
     return 100 * pu_emd_loss(output, target) + repulsion_loss(output, target)
     #return 100 * emd_loss(output, target) + repulsion_loss(output, target)
 
-def cd_re_loss(output, target):
-    return cd_loss(output, target) + repulsion_loss(output, target)
+#def cd_re_loss(output, target):
+#    return cd_loss(output, target) + repulsion_loss(output, target)
 
 def nll_loss(output, target):
     return F.nll_loss(output, target)
@@ -69,10 +73,33 @@ def nll_loss(output, target):
 def mse_loss(output, target):
     return F.mse_loss(output, target)
 
-#def emd_loss(output, target):
-#    return torch.mean(earth_mover_distance(output, target, transpose=False))
+def emd_loss(output, target):
+    emd = earth_mover_distance(output, target, transpose=False)
+    emd = torch.sqrt(emd)
+    print(emd.shape)
+    return torch.mean(emd)
 
 def cd_loss(output, target):
     out = chamfer_3DFunction.apply(output, target)
-    return out[0].mean()
+    return out[0].mean() + out[1].mean()
 
+
+def hausdorff_loss(self, P, Q):
+        # P and Q are tensors of shape (batch_size, num_points, point_dim)
+        # Compute the pairwise distance between points in P and Q
+        P = P.unsqueeze(2)  # shape: (batch_size, num_points, 1, point_dim)
+        Q = Q.unsqueeze(1)  # shape: (batch_size, 1, num_points, point_dim)
+        
+        # Compute pairwise distances
+        distances = torch.norm(P - Q, dim=-1)  # shape: (batch_size, num_points, num_points)
+        
+        # Compute directed Hausdorff distance
+        min_P_to_Q, _ = torch.min(distances, dim=2)  # shape: (batch_size, num_points)
+        min_Q_to_P, _ = torch.min(distances, dim=1)  # shape: (batch_size, num_points)
+        
+        hausdorff_P_to_Q = torch.max(min_P_to_Q, dim=1)[0]  # shape: (batch_size)
+        hausdorff_Q_to_P = torch.max(min_Q_to_P, dim=1)[0]  # shape: (batch_size)
+        
+        hausdorff_distance = torch.max(hausdorff_P_to_Q, hausdorff_Q_to_P)
+        
+        return torch.mean(hausdorff_distance)

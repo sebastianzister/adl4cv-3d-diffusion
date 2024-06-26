@@ -1,5 +1,5 @@
 {
-    "name": "FrequencyRect cosine cd test",
+    "name": "FrequencyRect precompute test",
     "n_gpu": 1,
 
     "arch": {
@@ -14,15 +14,16 @@
         "type": "ShapeNetAugmentedDataLoader",
         "args":{
             "data_dir": "data/",
-            "batch_size": 32,
+            "batch_size": 1,
             "shuffle": true,
-            "validation_split": 0.2,
+            "validation_split": 0.5,
             "num_workers": 0,
             "pin_memory": false,
             "tr_sample_size": 4096,
             "down_ratio": 2,
             "random_downsample": false,
-            "noise": false
+            "noise": false,
+            "size": 2
         }
     },
     "optimizer": {
@@ -33,16 +34,16 @@
             "amsgrad": true
         }
     },
-    "loss": ["cd_loss"],
-    "loss_weight": [1000.0],
+    "loss": ["pu_emd_loss", "repulsion_loss", "fre_loss"],
+    "loss_weight": [100.0, 1.0, 10.0],
     "metrics": [
     ],
     "lr_scheduler": {
-        "type": "CosineAnnealingLR",
+        "type": "StepLR",
         "pass_optimizer": false,
         "args": {
-            "T_max": 100,
-            "eta_min": 0.0001
+            "gamma": 0.99654026282787,
+            "step_size": 500
         }
     },
     "trainer": {

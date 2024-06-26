@@ -7,23 +7,37 @@
 // input: unknown(b, n, 2) known(b, m, 2)
 // output: dist2(b, n, 3), idx(b, n, 3)
 
+#define PI 3.141592654f
+
 __global__ void three_nn_kernel(int b, int n, int m,
-                                const float *__restrict__ unknown,
+                                int nlat, int nlon,
                                 const float *__restrict__ known,
                                 float *__restrict__ dist2,
                                 int *__restrict__ idx) {
   int batch_index = blockIdx.x;
-  unknown += batch_index * n * 2;
   known += batch_index * m * 2;
   dist2 += batch_index * n * 3;
   idx += batch_index * n * 3;
 
+  // Load data into shared memory
+
+  float nlatf = (float)nlat;
+  float dlat = PI/nlatf;
+
   int index = threadIdx.x;
   int stride = blockDim.x;
+  
+
   for (int j = index; j < n; j += stride) {
     // TODO: replace this with calculated grid to save memory
-    float ux = unknown[j * 2 + 0];
-    float uy = unknown[j * 2 + 1];
+    //float ux = unknown[j * 2 + 0];
+    //float uy = unknown[j * 2 + 1];
+    float ux = (j / nlon) * dlat; // (0, 0) -> (-pi, -pi)
+    float uy = ((j % nlon) - nlat) * dlat;
+    //float sux, cux;
+    //sincosf(ux, &sux, &cux);
+    //float suy, cuy;
+    //sincosf(uy, &suy, &cuy);
 
     double best1 = 1e40, best2 = 1e40, best3 = 1e40;
     int besti1 = 0, besti2 = 0, besti3 = 0;
@@ -32,6 +46,12 @@ __global__ void three_nn_kernel(int b, int n, int m,
       float y = known[k * 2 + 1];
       // TODO: replace this with distance defined in FrePolad
       float d = (ux - x) * (ux - x) + (uy - y) * (uy - y);
+      //float sx, cx;
+      //sincosf(x, &sx, &cx);
+      //float sy, cy;
+      //sincosf(y, &sy, &cy);
+      //float cyuy =  cosf(y - uy);
+      //float d = 2 - 2*(sx*sux*cyuy + cx*cux);
       if (d < best1) {
         best3 = best2;
         besti3 = besti2;
@@ -59,7 +79,80 @@ __global__ void three_nn_kernel(int b, int n, int m,
   }
 }
 
+void three_nn_kernel_wrapper(int b, int n, int m, int nlat, int nlon,
+                             const float *known, float *dist2, int *idx) {
+  cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+  three_nn_kernel<<<b, opt_n_threads(n), 0, stream>>>(b, n, m, nlat, nlon, known,
+                                                      dist2, idx);
 
+  CUDA_CHECK_ERRORS();
+}
+
+/*
+__global__ void three_nn_kernel(int b, int n, int m,
+                                const float *__restrict__ unknown,
+                                const float *__restrict__ known,
+                                float *__restrict__ dist2,
+                                int *__restrict__ idx) {
+  int batch_index = blockIdx.x;
+  unknown += batch_index * n * 2;
+  known += batch_index * m * 2;
+  dist2 += batch_index * n * 3;
+  idx += batch_index * n * 3;
+
+  int index = threadIdx.x;
+  int stride = blockDim.x;
+  for (int j = index; j < n; j += stride) {
+    // TODO: replace this with calculated grid to save memory
+    float ux = unknown[j * 2 + 0];
+    float uy = unknown[j * 2 + 1];
+    //float sux, cux;
+    //sincosf(ux, &sux, &cux);
+    //float suy, cuy;
+    //sincosf(uy, &suy, &cuy);
+
+    double best1 = 1e40, best2 = 1e40, best3 = 1e40;
+    int besti1 = 0, besti2 = 0, besti3 = 0;
+    for (int k = 0; k < m; ++k) {
+      float x = known[k * 2 + 0];
+      float y = known[k * 2 + 1];
+      // TODO: replace this with distance defined in FrePolad
+      float d = (ux - x) * (ux - x) + (uy - y) * (uy - y);
+      //float sx, cx;
+      //sincosf(x, &sx, &cx);
+      //float sy, cy;
+      //sincosf(y, &sy, &cy);
+      //float cyuy =  cosf(y - uy);
+      //float d = 2 - 2*(sx*sux*cyuy + cx*cux);
+      if (d < best1) {
+        best3 = best2;
+        besti3 = besti2;
+        best2 = best1;
+        besti2 = besti1;
+        best1 = d;
+        besti1 = k;
+      } else if (d < best2) {
+        best3 = best2;
+        besti3 = besti2;
+        best2 = d;
+        besti2 = k;
+      } else if (d < best3) {
+        best3 = d;
+        besti3 = k;
+      }
+    }
+    dist2[j * 3 + 0] = best1;
+    dist2[j * 3 + 1] = best2;
+    dist2[j * 3 + 2] = best3;
+
+    idx[j * 3 + 0] = besti1;
+    idx[j * 3 + 1] = besti2;
+    idx[j * 3 + 2] = besti3;
+  }
+}
+*/
+
+/*
 void three_nn_kernel_wrapper(int b, int n, int m, const float *unknown,
                              const float *known, float *dist2, int *idx) {
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
@@ -68,6 +161,7 @@ void three_nn_kernel_wrapper(int b, int n, int m, const float *unknown,
 
   CUDA_CHECK_ERRORS();
 }
+*/
 
 // input: points(b, c, m), idx(b, n, 3), weight(b, n, 3)
 // output: out(b, c, n)

@@ -7,19 +7,23 @@ import model.metric as module_metric
 import model.model as module_arch
 from parse_config import ConfigParser
 
+from utils import visualize_batch
+import numpy as np
+import matplotlib.image
+
 
 def main(config):
     logger = config.get_logger('eval')
 
     # setup data_loader instances
-    #data_loader = getattr(module_data, config['data_loader']['type'])(
-    #    config['data_loader']['args']['data_dir'],
-    #    batch_size=512,
-    #    shuffle=False,
-    #    validation_split=0.0,
-    #    training=False,
-    #    num_workers=2
-    #)
+    data_loader = getattr(module_data, config['data_loader']['type'])(
+        config['data_loader']['args']['data_dir'],
+        batch_size=16,
+        shuffle=False,
+        validation_split=0.0,
+        training=False,
+        num_workers=2
+    )
 
     # build model architecture
     model = config.init_obj('arch', module_arch)
@@ -45,9 +49,9 @@ def main(config):
     #total_metrics = torch.zeros(len(metric_fns))
 
     with torch.no_grad():
-        for i, (data, target) in enumerate(tqdm(data_loader)):
+        for i, data in enumerate(tqdm(data_loader)):
             print(data)
-            data = data.to(device)
+            data #.to(device)
             output = model(data)
 
             #
@@ -61,6 +65,8 @@ def main(config):
             #for i, metric in enumerate(metric_fns):
             #    total_metrics[i] += metric(output, target) * batch_size
             img = visualize_batch(data.cpu(), output.cpu(), output.cpu())
+            
+            matplotlib.image.imsave('output/{}.png'.format(i), np.ascontiguousarray(img.transpose(1,2,0)))
 
     #n_samples = len(data_loader.sampler)
     #log = {'loss': total_loss / n_samples}
@@ -81,3 +87,4 @@ if __name__ == '__main__':
 
     config = ConfigParser.from_args(args)
     main(config)
+

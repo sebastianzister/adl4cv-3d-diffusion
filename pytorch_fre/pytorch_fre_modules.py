@@ -88,6 +88,23 @@ class FreCalc(nn.Module):
         target_sph[:, :, 1] -= math.pi
         
         # PYKEOPS VERSION
+        
+        # SPHERICAL DISTANCE
+        '''
+        grid = self.grid.expand(target_sph.shape[0], -1, -1)
+        rho1, phi1, theta1 = target_sph[..., 0:1], target_sph[..., 1:2], target_sph[..., 2:3]
+        rho2, phi2, theta2 = grid[..., 0:1], grid[..., 1:2], grid[..., 2:3]
+
+        # Convert to LazyTensors
+        phi1_i = LazyTensor(phi1[:, :, None, :])  # (B, 1, 1)
+        theta1_i = LazyTensor(theta1[:, :, None, :])  # (B, 1, 1)
+        phi2_j = LazyTensor(phi2[:, None, :, :])  # (1, B, 1)
+        theta2_j = LazyTensor(theta2[:, None, :, :])  # (1, B, 1)
+
+        # Compute the loss
+        D2 = 2 - 2 * (theta1_i.sin() * theta2_j.sin() * (phi1_i - phi2_j).cos() + theta1_i.cos() * theta2_j.cos())
+        '''
+
         X_j = LazyTensor(self.grid.expand(target_sph.shape[0], -1, -1).unsqueeze(-3))
         X_i = LazyTensor(target_sph.unsqueeze(-2))
         D2 = ((X_i - X_j) ** 2).sum(-1)
@@ -211,13 +228,12 @@ class FreLossPrecomputed(nn.Module):
         #tmp_time = time.time()
 
         pred_features, pred_sph = to_spherical(pred)
-        print("SPHERICAL::", pred_sph.isnan().any())
         pred_sph[:, :, 1] -= math.pi
         
         #tmp_time = time.time()
         
         # PYKEOPS VERSION
-        X_j = LazyTensor(self.grid.expand(pred_sph.shape[0], -1, -1).unsqueeze(-3))
+        X_j = LazyTensor(self.grid.expand(pred_sph.shape[0], -1, -1).unsqueeze(-3).contiguous())
         X_i = LazyTensor(pred_sph.unsqueeze(-2))
         D2 = ((X_i - X_j) ** 2).sum(-1)
         pred_idx = D2.argKmin(3, dim=1)
@@ -242,9 +258,10 @@ class FreLossPrecomputed(nn.Module):
         #tmp_time = time.time()
 
         
+        #print("0 in pred_dist", (pred_dist == 0).any())
         pred_dist = pred_dist/pred_dist.sum(dim=-1, keepdim=True)
-        print("NAN IN PRED_DIST", pred_dist.isnan().any())
-        print("INF IN PRED_DIST", pred_dist.isinf().any())
+        #print("NAN IN PRED_DIST", pred_dist.isnan().any())
+        #print("INF IN PRED_DIST", pred_dist.isinf().any())
         
         pred_interp = fre.three_interpolate(pred_features.contiguous(), pred_idx.int(), pred_dist)
         
@@ -262,36 +279,39 @@ class FreLossPrecomputed(nn.Module):
 
         #return (pred_coeffs.real - target_coeffs.real)**2
         output = torch.sum(((pred_coeffs.real - target_coeffs)**2)*self.rect_weights, dim=(1, 2)).mean() 
-        #[grad_dist_pred] = torch.autograd.grad(pred_dist.sum(), [pred_tmp], retain_graph=True)
-        #[grad_full, grad_coeff, pred_interp, pred_dist] = torch.autograd.grad(output, [pred, pred_coeffs, pred_interp, pred_dist], retain_graph=True)
-        #print the outputs that result in nan gradients
-        #nan_grads = grad_full.isnan()
-        #if(nan_grads.sum() < 200 and nan_grads.sum() > 0):
-        #    for i in range(0, nan_grads.shape[1]):
-        #        if nan_grads[0][i].sum() > 0:
-        #            print("POINT::", nan_grads[0][i])
-        #            print("PREDPOINT::", pred[0][i])
-        #            print("SPHERICAL::", pred_sph[0][i])
-        #    
-        #    import sys
-        #    sys.exit()
-        # print the points in pred that have nan gradients
-        #print("PRED::", pred.shape)
-        #print("GRAD_NAN::", grad_full.isnan().shape)
-
-        #print("")
-        #print("GRAD::", grad_full.isnan().sum())
-        #print("GRAD COEFF::", grad_coeff.isnan().any())
-        #print("GRAD INTERP::", pred_interp.isnan().any())
-        #print("GRAD DIST::", pred_dist.isnan().any())
-        #print("")
-        #print("GRAD TMP PRED::", grad_dist_pred.isnan().any())
-        #print("")
-        #print("OUTPUT", output.isnan().any())
-        #print("PRED COEFF::", pred_coeffs.isnan().any())
-        #print("PRED INTERP::", pred_interp.isnan().any())
-        #print("PRED DIST::", pred_dist.isnan().any())
-        #print("PRED IDX::", pred_idx.isnan().any())
-        #print("")
+        if(pred.requires_grad):
+            [grad_dist_pred] = torch.autograd.grad(pred_dist.sum(), [pred_tmp], retain_graph=True)
+            [grad_full, grad_coeff, pred_interp, pred_dist] = torch.autograd.grad(output, [pred, pred_coeffs, pred_interp, pred_dist], retain_graph=True)
+            #print the outputs that result in nan gradients
+            nan_grads = grad_full.isnan()
+            if(nan_grads.sum() < 200 and nan_grads.sum() > 0):
+                for i in range(0, nan_grads.shape[1]):
+                    for batch in range(0, nan_grads.shape[0]):
+                        if nan_grads[batch][i].sum() > 0:
+                            print("BATCH::", batch, "POINT::", i)
+                            print("POINT::", nan_grads[batch][i])
+                            print("PREDPOINT::", pred[batch][i])
+                            print("SPHERICAL::", pred_sph[batch][i])
+                
+                import sys
+                sys.exit()
+            #print the points in pred that have nan gradients
+#            print("PRED::", pred.shape)
+#            print("GRAD_NAN::", grad_full.isnan().shape)
+#
+#            print("")
+#            print("GRAD::", grad_full.isnan().sum())
+#            print("GRAD COEFF::", grad_coeff.isnan().any())
+#            print("GRAD INTERP::", pred_interp.isnan().any())
+#            print("GRAD DIST::", pred_dist.isnan().any())
+#            print("")
+#            print("GRAD TMP PRED::", grad_dist_pred.isnan().any())
+#            print("")
+#            print("OUTPUT", output.isnan().any())
+#            print("PRED COEFF::", pred_coeffs.isnan().any())
+#            print("PRED INTERP::", pred_interp.isnan().any())
+#            print("PRED DIST::", pred_dist.isnan().any())
+#            print("PRED IDX::", pred_idx.isnan().any())
+#            print("")
         return output
 

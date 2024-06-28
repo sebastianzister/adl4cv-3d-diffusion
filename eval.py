@@ -9,6 +9,7 @@ from parse_config import ConfigParser
 
 from utils import visualize_batch
 import numpy as np
+import torch
 import matplotlib.image
 
 
@@ -48,6 +49,8 @@ def main(config):
     #total_loss = 0.0
     #total_metrics = torch.zeros(len(metric_fns))
 
+    outputs = torch.Tensor()
+
     with torch.no_grad():
         for i, data in enumerate(tqdm(data_loader)):
             data = data.to(device)
@@ -63,9 +66,13 @@ def main(config):
             #total_loss += loss.item() * batch_size
             #for i, metric in enumerate(metric_fns):
             #    total_metrics[i] += metric(output, target) * batch_size
-            img = visualize_batch(data.cpu(), output.cpu(), output.cpu())
+            output_cpu = output.cpu()
+            outputs = torch.cat((outputs, output_cpu), dim=0)
+            img = visualize_batch(data.cpu(), output_cpu, output.cpu())
             
             matplotlib.image.imsave('output/{}.png'.format(i), np.ascontiguousarray(img.transpose(1,2,0)))
+
+    torch.save(outputs, 'output/outputs.pth')
 
     #n_samples = len(data_loader.sampler)
     #log = {'loss': total_loss / n_samples}

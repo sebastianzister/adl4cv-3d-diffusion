@@ -18,6 +18,9 @@ import time
 # PVCNN2 orig
 #from model.pvcnn_utils import *
 
+# disentagled refinement
+from model.disentangled_refinement import GlobalRefinementUnit
+
 class MnistModel(BaseModel):
     def __init__(self, num_classes=10):
         super().__init__()
@@ -189,12 +192,14 @@ class PVCNN2(PVCNN2Base):
 
         
 class PUNet(BaseModel):
-    def __init__(self, npoint=1024, up_ratio=4, use_normal=False, use_bn=False):
+    def __init__(self, npoint=1024, up_ratio=4, use_normal=False, use_bn=False, use_global_ref=False):
         super().__init__()
 
         self.npoint = npoint
         self.use_normal = use_normal
         self.up_ratio = up_ratio
+        
+        self.use_global_ref = use_global_ref
 
         self.npoints = [
             npoint, 
@@ -236,6 +241,7 @@ class PUNet(BaseModel):
                     mlp=[mlps[k + 1][-1], 64], 
                     bn=use_bn))
         
+        
         # feature Expansion
         in_ch = len(self.npoints) * 64 + 3 # 4 layers + input xyz
         self.FC_Modules = nn.ModuleList()
@@ -250,6 +256,13 @@ class PUNet(BaseModel):
         self.pcd_layer = nn.Sequential(
             pt_utils.SharedMLP([in_ch, 64], bn=use_bn),
             pt_utils.SharedMLP([64, 3], activation=None, bn=False)) 
+        
+        if(use_global_ref):
+            self.global_ref = GlobalRefinementUnit(128, 128)
+        
+            self.pcd_layer2 = nn.Sequential(
+                pt_utils.SharedMLP([in_ch, 64], bn=use_bn),
+                pt_utils.SharedMLP([64, 3], activation=None, bn=False))
 
     def forward(self, points, npoint=None, visualize_latent=False):
         if npoint is None:
@@ -291,7 +304,13 @@ class PUNet(BaseModel):
         r_feats = torch.cat(r_feats, dim=2) # bs, mid_ch, r * N, 1
 
         # reconstruction
-        output = self.pcd_layer(r_feats)  # bs, 3, r * N, 1
+        recon = self.pcd_layer(r_feats)  # bs, 3, r * N, 1
+        if(self.use_global_ref):
+            ref_feats = self.global_ref(r_feats.squeeze(-1), recon.squeeze(-1))
+            output = self.pcd_layer2(ref_feats.unsqueeze(-1))
+        else:
+            output = recon
+            
         return output.squeeze(-1).transpose(1, 2).contiguous() # bs, 3, r * N
     
 '''

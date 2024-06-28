@@ -285,7 +285,7 @@ class ShapeNet15kPointCloudsAugmented(ShapeNet15kPointClouds):
                 print("Batch {}/{}".format(i, num_batches))
                 start_idx = i * batch_size
                 end_idx = min((i + 1) * batch_size, len(self.train_points))
-                batch_points = self.train_points[start_idx:end_idx]
+                batch_points = self.train_points[start_idx:end_idx, :tr_sample_size]
                 batch_harmonics = freCalc(torch.tensor(batch_points).cuda())
                 self.train_harmonics[start_idx:end_idx] = batch_harmonics
     

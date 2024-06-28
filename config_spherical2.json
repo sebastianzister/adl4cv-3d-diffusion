@@ -1,5 +1,5 @@
 {
-    "name": "FrequencyRect nightly again",
+    "name": "FreRect 1x",
     "n_gpu": 1,
 
     "arch": {
@@ -29,13 +29,13 @@
     "optimizer": {
         "type": "Adam",
         "args":{
-            "lr": 0.0001,
+            "lr": 0.001,
             "weight_decay": 0.0005,
             "amsgrad": true
         }
     },
     "loss": ["pu_emd_loss", "repulsion_loss", "fre_loss"],
-    "loss_weight": [100.0, 1.0, 10.0],
+    "loss_weight": [100.0, 1.0, 1.0],
     "metrics": [
     ],
     "lr_scheduler": {
@@ -47,10 +47,10 @@
         }
     },
     "trainer": {
-        "epochs": 400,
+        "epochs": 500,
 
         "save_dir": "saved/",
-        "save_period": 50,
+        "save_period": 25,
         "verbosity": 2,
         
         "monitor": "min val_loss",

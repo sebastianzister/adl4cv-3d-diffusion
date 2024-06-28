@@ -1,5 +1,5 @@
 {
-    "name": "FreRect 1x",
+    "name": "FreRect pykeops tests",
     "n_gpu": 1,
 
     "arch": {
@@ -14,16 +14,17 @@
         "type": "ShapeNetAugmentedDataLoader",
         "args":{
             "data_dir": "data/",
-            "batch_size": 32,
+            "batch_size": 1,
             "shuffle": true,
-            "validation_split": 0.2,
+            "validation_split": 0.5,
             "num_workers": 0,
             "pin_memory": false,
             "tr_sample_size": 4096,
             "down_ratio": 2,
             "random_downsample": false,
             "noise": false,
-            "calc_harmonics": true
+            "calc_harmonics": true,
+            "size":2
         }
     },
     "optimizer": {
@@ -50,16 +51,16 @@
         "epochs": 500,
 
         "save_dir": "saved/",
-        "save_period": 25,
+        "save_period": 500,
         "verbosity": 2,
         
         "monitor": "min val_loss",
         "early_stop": 10,
         "do_validation": false,
         "val_per_epochs" : 5,
-        "visualize_per_epochs" : 50,    
-        "visualize_train_batch" : 50,
+        "visualize_per_epochs" : 500,    
+        "visualize_train_batch" : 500,
 
-        "tensorboard": true
+        "tensorboard": false 
     }
 }

@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 
 from knn_cuda import KNN
 
+from pykeops.torch import LazyTensor
+
 def to_spherical(coords: torch.Tensor) -> torch.Tensor:
     """
     Convert Cartesian coordinates to n-dimensional spherical coordinates.
@@ -24,17 +26,21 @@ def to_spherical(coords: torch.Tensor) -> torch.Tensor:
         torch.Tensor: Tensor representing spherical coordinates (r, phi_1, ... phi_n-1).
                       Shape: (..., n)
     """    
-    n = coords.shape[-1]
+    #n = coords.shape[-1]
     
     # We compute the coordinates following https://en.wikipedia.org/wiki/N-sphere#Spherical_coordinates
-    r = torch.norm(coords, dim=-1, keepdim=True)
+    #r = torch.norm(coords, dim=-1, keepdim=True)
 
     # phi_norms are the quotients in the wikipedia article above
-    phi_norms = torch.norm(torch.tril(coords.flip(-1).unsqueeze(-2).expand((*coords.shape, n))), dim=-1).flip(-1)
-    phi = torch.arccos(coords[..., :-2]/phi_norms[..., :-2])
-    phi_final = torch.arccos(coords[..., -2:-1]/phi_norms[..., -2:-1]) + (2*math.pi - 2*torch.arccos(coords[..., -2:-1]/phi_norms[..., -2:-1]))*(coords[..., -1:] < 0)
-            
-    return r.permute(0, 2, 1), torch.cat([phi, phi_final], dim=-1)
+    #phi_norms = torch.norm(torch.tril(coords.flip(-1).unsqueeze(-2).expand((*coords.shape, n))), dim=-1).flip(-1)
+    #phi = torch.arccos(coords[..., :-2]/phi_norms[..., :-2])
+    #phi_final = torch.arccos(coords[..., -2:-1]/phi_norms[..., -2:-1]) + (2*math.pi - 2*torch.arccos(coords[..., -2:-1]/phi_norms[..., -2:-1]))*(coords[..., -1:] < 0)
+
+    rho = torch.norm(coords, dim=-1, keepdim=True)
+    phi = torch.atan2(coords[..., 1:2], coords[..., 0:1])
+    theta = torch.acos(coords[..., 2:3] / rho)       
+    return rho.permute(0, 2, 1), torch.cat((phi, theta), dim=-1)
+    #return r.permute(0, 2, 1), torch.cat([phi, phi_final], dim=-1)
 
 def to_cartesian(coords: torch.Tensor) -> torch.Tensor:
     """
@@ -75,23 +81,38 @@ class FreCalc(nn.Module):
         
         self.sht = th.RealSHT(self.nlat, self.nlon, grid='equiangular', lmax=self.lmax, mmax=self.mmax).to(device)
     
-        self.knn_obj = KNN(k=3, transpose_mode=True)
+        #self.knn_obj = KNN(k=3, transpose_mode=True)
 
     def forward(self, target):
         target_features, target_sph = to_spherical(target)
         target_sph[:, :, 1] -= math.pi
         
-        #pred_dist, pred_idx = self.knn_obj(pred_sph, self.grid.expand(pred_sph.shape[0], -1, -1))
-        target_dist, target_idx = self.knn_obj(target_sph, self.grid.expand(target_sph.shape[0], -1, -1))
+        # PYKEOPS VERSION
+        X_j = LazyTensor(self.grid.expand(target_sph.shape[0], -1, -1).unsqueeze(-3))
+        X_i = LazyTensor(target_sph.unsqueeze(-2))
+        D2 = ((X_i - X_j) ** 2).sum(-1)
+        target_idx = D2.argKmin(3, dim=1)
+        # Create a tensor of batch indices
+        batch_indices = torch.arange(target_sph.shape[0]).view(-1, 1, 1)
+
+        # Expand the batch indices tensor to match the shape of knn_idx
+        batch_indices = batch_indices.expand(-1, self.grid.shape[1], 3)
+        # Use advanced indexing to select the k nearest neighbours
+        target_tmp = target_sph[batch_indices, target_idx, :]
+        # calculated the distances again
+        target_dist = torch.sqrt(((target_tmp - self.grid.expand(target_sph.shape[0], -1, -1).unsqueeze(-2))**2).sum(-1))
+
+        # KNN_CUDA VERSION
+        #target_dist, target_idx = self.knn_obj(target_sph, self.grid.expand(target_sph.shape[0], -1, -1))
         
         # OLD VERSION FOR NN
-        #pred_dist, pred_idx = fre.three_nn(self.grid.expand(pred_sph.shape[0], -1, -1).contiguous(), pred_sph)
         #target_dist, target_idx = fre.three_nn(self.grid.expand(pred_sph.shape[0], -1, -1).contiguous(), target_sph)
         
         target_dist = target_dist/target_dist.sum(dim=-1, keepdim=True)
         
         target_interp = fre.three_interpolate(target_features.contiguous(), target_idx.int(), target_dist)
-        
+        #plt.imshow(target_interp[1].detach().cpu().numpy().reshape(self.nlat, self.nlon))
+        #plt.show()
         target_coeffs = self.sht.forward(target_interp.reshape(-1, self.nlat, self.nlon))
         
         return target_coeffs.real
@@ -183,17 +204,35 @@ class FreLossPrecomputed(nn.Module):
         self.rect_weights = torch.exp(-((self.lmax - torch.arange(1, self.lmax+1))**2)/(2*self.s2_fre)).to(device)
         self.rect_weights = self.rect_weights.unsqueeze(0).unsqueeze(2)
         
-        self.knn_obj = KNN(k=3, transpose_mode=True)
+        #self.knn_obj = KNN(k=3, transpose_mode=True)
 
     def forward(self, pred, target_coeffs):
+        #torch.autograd.set_detect_anomaly(True)
         #tmp_time = time.time()
 
         pred_features, pred_sph = to_spherical(pred)
+        print("SPHERICAL::", pred_sph.isnan().any())
         pred_sph[:, :, 1] -= math.pi
         
         #tmp_time = time.time()
         
-        pred_dist, pred_idx = self.knn_obj(pred_sph, self.grid.expand(pred_sph.shape[0], -1, -1))
+        # PYKEOPS VERSION
+        X_j = LazyTensor(self.grid.expand(pred_sph.shape[0], -1, -1).unsqueeze(-3))
+        X_i = LazyTensor(pred_sph.unsqueeze(-2))
+        D2 = ((X_i - X_j) ** 2).sum(-1)
+        pred_idx = D2.argKmin(3, dim=1)
+
+        # Create a tensor of batch indices
+        batch_indices = torch.arange(pred_sph.shape[0]).view(-1, 1, 1)
+
+        # Expand the batch indices tensor to match the shape of knn_idx
+        batch_indices = batch_indices.expand(-1, self.grid.shape[1], 3)
+        # Use advanced indexing to select the k nearest neighbours
+        pred_tmp = pred_sph[batch_indices, pred_idx, :]
+        # calculated the distances again
+        pred_dist = torch.sqrt(((pred_tmp - self.grid.expand(pred_sph.shape[0], -1, -1).unsqueeze(-2))**2).sum(-1))
+
+        #pred_dist, pred_idx = self.knn_obj(pred_sph, self.grid.expand(pred_sph.shape[0], -1, -1))
         
         # OLD VERSION FOR NN
         #pred_dist, pred_idx = fre.three_nn(self.grid.expand(pred_sph.shape[0], -1, -1).contiguous(), pred_sph)
@@ -204,6 +243,8 @@ class FreLossPrecomputed(nn.Module):
 
         
         pred_dist = pred_dist/pred_dist.sum(dim=-1, keepdim=True)
+        print("NAN IN PRED_DIST", pred_dist.isnan().any())
+        print("INF IN PRED_DIST", pred_dist.isinf().any())
         
         pred_interp = fre.three_interpolate(pred_features.contiguous(), pred_idx.int(), pred_dist)
         
@@ -220,5 +261,37 @@ class FreLossPrecomputed(nn.Module):
         #print('Time for SHT: ', time.time() - tmp_time)
 
         #return (pred_coeffs.real - target_coeffs.real)**2
-        return torch.sum(((pred_coeffs.real - target_coeffs)**2)*self.rect_weights, dim=(1, 2)).mean()
+        output = torch.sum(((pred_coeffs.real - target_coeffs)**2)*self.rect_weights, dim=(1, 2)).mean() 
+        #[grad_dist_pred] = torch.autograd.grad(pred_dist.sum(), [pred_tmp], retain_graph=True)
+        #[grad_full, grad_coeff, pred_interp, pred_dist] = torch.autograd.grad(output, [pred, pred_coeffs, pred_interp, pred_dist], retain_graph=True)
+        #print the outputs that result in nan gradients
+        #nan_grads = grad_full.isnan()
+        #if(nan_grads.sum() < 200 and nan_grads.sum() > 0):
+        #    for i in range(0, nan_grads.shape[1]):
+        #        if nan_grads[0][i].sum() > 0:
+        #            print("POINT::", nan_grads[0][i])
+        #            print("PREDPOINT::", pred[0][i])
+        #            print("SPHERICAL::", pred_sph[0][i])
+        #    
+        #    import sys
+        #    sys.exit()
+        # print the points in pred that have nan gradients
+        #print("PRED::", pred.shape)
+        #print("GRAD_NAN::", grad_full.isnan().shape)
+
+        #print("")
+        #print("GRAD::", grad_full.isnan().sum())
+        #print("GRAD COEFF::", grad_coeff.isnan().any())
+        #print("GRAD INTERP::", pred_interp.isnan().any())
+        #print("GRAD DIST::", pred_dist.isnan().any())
+        #print("")
+        #print("GRAD TMP PRED::", grad_dist_pred.isnan().any())
+        #print("")
+        #print("OUTPUT", output.isnan().any())
+        #print("PRED COEFF::", pred_coeffs.isnan().any())
+        #print("PRED INTERP::", pred_interp.isnan().any())
+        #print("PRED DIST::", pred_dist.isnan().any())
+        #print("PRED IDX::", pred_idx.isnan().any())
+        #print("")
+        return output
 

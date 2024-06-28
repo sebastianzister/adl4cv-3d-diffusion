@@ -74,8 +74,12 @@ class Trainer(BaseTrainer):
                 tot_loss += loss
 
             tot_loss.backward()
+
+            print(output.isnan().any())
             self.optimizer.step()
-            
+            is_nan = torch.stack([torch.isnan(p).any() for p in self.model.parameters()]).any()
+            print("NAN in model: ", is_nan.item())
+
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
             self.train_metrics.update('loss', tot_loss.item())
             for i, c in enumerate(self.criterion):

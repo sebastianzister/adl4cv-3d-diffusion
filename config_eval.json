@@ -11,15 +11,15 @@
         }
     },
     "data_loader": {
-        "type": "ShapeNetAugmentedDataLoader",
+        "type": "PVDDataLoader",
         "args":{
             "data_dir": "data/",
-            "batch_size": 16,
+            "batch_size": 1,
             "shuffle": false,
             "validation_split": 0.0,
-            "num_workers": 0,
-            "pin_memory": false,
-            "size" : 300
+            "num_workers": 2,
+            "pin_memory": true,
+            "size" : 2
         }
     },
     "optimizer": {

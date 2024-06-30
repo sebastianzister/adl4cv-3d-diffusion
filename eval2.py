@@ -50,8 +50,10 @@ def main(config):
 
     with torch.no_grad():
         for i, data in enumerate(tqdm(data_loader)):
-            print(data)
-            data #.to(device)
+            print(len(data))
+            print(data[0].shape)
+
+            data = data.to(device)
             output = model(data)
 
             #
@@ -64,9 +66,9 @@ def main(config):
             #total_loss += loss.item() * batch_size
             #for i, metric in enumerate(metric_fns):
             #    total_metrics[i] += metric(output, target) * batch_size
-            img = visualize_batch(data.cpu(), output.cpu(), output.cpu())
+            #img = visualize_batch(data.cpu(), output.cpu(), output.cpu())
             
-            matplotlib.image.imsave('output/{}.png'.format(i), np.ascontiguousarray(img.transpose(1,2,0)))
+            #matplotlib.image.imsave('output/{}.png'.format(i), np.ascontiguousarray(img.transpose(1,2,0)))
 
     #n_samples = len(data_loader.sampler)
     #log = {'loss': total_loss / n_samples}

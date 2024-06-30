@@ -1,5 +1,5 @@
 {
-    "name": "PVCU Full",
+    "name": "PVCU Metrics",
     "n_gpu": 1,
 
     "arch": {
@@ -11,14 +11,13 @@
         }
     },
     "data_loader": {
-        "type": "PVDDataLoader",
+        "type": "ShapeNetAugmentedDataLoader",
         "args":{
             "data_dir": "data/",
             "batch_size": 1,
             "shuffle": false,
             "validation_split": 0.5,
             "num_workers": 2,
-            "pin_memory": false,
             "size": 2
         }
     },
@@ -46,7 +45,7 @@
         "epochs": 1000,
 
         "save_dir": "saved/",
-        "save_period": 100,
+        "save_period": 10,
         "verbosity": 2,
         
         "monitor": "min val_loss",

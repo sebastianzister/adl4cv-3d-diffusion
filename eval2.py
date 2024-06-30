@@ -93,7 +93,6 @@ def main(config):
             data = data.to(device)
             output = model(data)
             batch_size = data.shape[0]
-<<<<<<< HEAD
             
             
             x = data['test_points']
@@ -112,14 +111,6 @@ def main(config):
 
     # Compute metrics
     results = compute_all_metrics(sample_pcs, ref_pcs, opt.batch_size)
-=======
-            #total_loss += loss.item() * batch_size
-            #for i, metric in enumerate(metric_fns):
-            #    total_metrics[i] += metric(output, target) * batch_size
-            #img = visualize_batch(data.cpu(), output.cpu(), output.cpu())
-            
-            #matplotlib.image.imsave('output/{}.png'.format(i), np.ascontiguousarray(img.transpose(1,2,0)))
->>>>>>> 9972021d022be2e17d08ca6b036a7a0f8989f13e
 
     #n_samples = len(data_loader.sampler)
     #log = {'loss': total_loss / n_samples}

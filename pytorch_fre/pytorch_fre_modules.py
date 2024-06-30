@@ -26,21 +26,21 @@ def to_spherical(coords: torch.Tensor) -> torch.Tensor:
         torch.Tensor: Tensor representing spherical coordinates (r, phi_1, ... phi_n-1).
                       Shape: (..., n)
     """    
-    #n = coords.shape[-1]
+    n = coords.shape[-1]
     
     # We compute the coordinates following https://en.wikipedia.org/wiki/N-sphere#Spherical_coordinates
-    #r = torch.norm(coords, dim=-1, keepdim=True)
+    r = torch.norm(coords, dim=-1, keepdim=True)
 
     # phi_norms are the quotients in the wikipedia article above
-    #phi_norms = torch.norm(torch.tril(coords.flip(-1).unsqueeze(-2).expand((*coords.shape, n))), dim=-1).flip(-1)
-    #phi = torch.arccos(coords[..., :-2]/phi_norms[..., :-2])
-    #phi_final = torch.arccos(coords[..., -2:-1]/phi_norms[..., -2:-1]) + (2*math.pi - 2*torch.arccos(coords[..., -2:-1]/phi_norms[..., -2:-1]))*(coords[..., -1:] < 0)
+    phi_norms = torch.norm(torch.tril(coords.flip(-1).unsqueeze(-2).expand((*coords.shape, n))), dim=-1).flip(-1)
+    phi = torch.arccos(coords[..., :-2]/phi_norms[..., :-2])
+    phi_final = torch.arccos(coords[..., -2:-1]/phi_norms[..., -2:-1]) + (2*math.pi - 2*torch.arccos(coords[..., -2:-1]/phi_norms[..., -2:-1]))*(coords[..., -1:] < 0)
 
-    rho = torch.norm(coords, dim=-1, keepdim=True)
-    phi = torch.atan2(coords[..., 1:2], coords[..., 0:1])
-    theta = torch.acos(coords[..., 2:3] / rho)       
-    return rho.permute(0, 2, 1), torch.cat((phi, theta), dim=-1)
-    #return r.permute(0, 2, 1), torch.cat([phi, phi_final], dim=-1)
+    #rho = torch.norm(coords, dim=-1, keepdim=True)
+    #phi = torch.atan2(coords[..., 1:2], coords[..., 0:1])
+    #theta = torch.acos(coords[..., 2:3] / rho)       
+    #return rho.permute(0, 2, 1), torch.cat((phi, theta), dim=-1)
+    return r.permute(0, 2, 1), torch.cat([phi, phi_final], dim=-1)
 
 def to_cartesian(coords: torch.Tensor) -> torch.Tensor:
     """
@@ -81,7 +81,7 @@ class FreCalc(nn.Module):
         
         self.sht = th.RealSHT(self.nlat, self.nlon, grid='equiangular', lmax=self.lmax, mmax=self.mmax).to(device)
     
-        #self.knn_obj = KNN(k=3, transpose_mode=True)
+        self.knn_obj = KNN(k=3, transpose_mode=True)
 
     def forward(self, target):
         target_features, target_sph = to_spherical(target)
@@ -105,22 +105,22 @@ class FreCalc(nn.Module):
         D2 = 2 - 2 * (theta1_i.sin() * theta2_j.sin() * (phi1_i - phi2_j).cos() + theta1_i.cos() * theta2_j.cos())
         '''
 
-        X_j = LazyTensor(self.grid.expand(target_sph.shape[0], -1, -1).unsqueeze(-3))
-        X_i = LazyTensor(target_sph.unsqueeze(-2))
-        D2 = ((X_i - X_j) ** 2).sum(-1)
-        target_idx = D2.argKmin(3, dim=1)
+        #X_j = LazyTensor(self.grid.expand(target_sph.shape[0], -1, -1).unsqueeze(-3))
+        #X_i = LazyTensor(target_sph.unsqueeze(-2))
+        #D2 = ((X_i - X_j) ** 2).sum(-1)
+        #target_idx = D2.argKmin(3, dim=1)
         # Create a tensor of batch indices
-        batch_indices = torch.arange(target_sph.shape[0]).view(-1, 1, 1)
+        #batch_indices = torch.arange(target_sph.shape[0]).view(-1, 1, 1)
 
         # Expand the batch indices tensor to match the shape of knn_idx
-        batch_indices = batch_indices.expand(-1, self.grid.shape[1], 3)
+        #batch_indices = batch_indices.expand(-1, self.grid.shape[1], 3)
         # Use advanced indexing to select the k nearest neighbours
-        target_tmp = target_sph[batch_indices, target_idx, :]
+        #target_tmp = target_sph[batch_indices, target_idx, :]
         # calculated the distances again
-        target_dist = torch.sqrt(((target_tmp - self.grid.expand(target_sph.shape[0], -1, -1).unsqueeze(-2))**2).sum(-1))
+        #target_dist = torch.sqrt(((target_tmp - self.grid.expand(target_sph.shape[0], -1, -1).unsqueeze(-2))**2).sum(-1))
 
         # KNN_CUDA VERSION
-        #target_dist, target_idx = self.knn_obj(target_sph, self.grid.expand(target_sph.shape[0], -1, -1))
+        target_dist, target_idx = self.knn_obj(target_sph, self.grid.expand(target_sph.shape[0], -1, -1))
         
         # OLD VERSION FOR NN
         #target_dist, target_idx = fre.three_nn(self.grid.expand(pred_sph.shape[0], -1, -1).contiguous(), target_sph)
@@ -221,7 +221,7 @@ class FreLossPrecomputed(nn.Module):
         self.rect_weights = torch.exp(-((self.lmax - torch.arange(1, self.lmax+1))**2)/(2*self.s2_fre)).to(device)
         self.rect_weights = self.rect_weights.unsqueeze(0).unsqueeze(2)
         
-        #self.knn_obj = KNN(k=3, transpose_mode=True)
+        self.knn_obj = KNN(k=3, transpose_mode=True)
 
     def forward(self, pred, target_coeffs):
         #torch.autograd.set_detect_anomaly(True)
@@ -233,22 +233,22 @@ class FreLossPrecomputed(nn.Module):
         #tmp_time = time.time()
         
         # PYKEOPS VERSION
-        X_j = LazyTensor(self.grid.expand(pred_sph.shape[0], -1, -1).unsqueeze(-3).contiguous())
-        X_i = LazyTensor(pred_sph.unsqueeze(-2))
-        D2 = ((X_i - X_j) ** 2).sum(-1)
-        pred_idx = D2.argKmin(3, dim=1)
+        #X_j = LazyTensor(self.grid.expand(pred_sph.shape[0], -1, -1).unsqueeze(-3).contiguous())
+        #X_i = LazyTensor(pred_sph.unsqueeze(-2))
+        #D2 = ((X_i - X_j) ** 2).sum(-1)
+        #pred_idx = D2.argKmin(3, dim=1)
 
         # Create a tensor of batch indices
-        batch_indices = torch.arange(pred_sph.shape[0]).view(-1, 1, 1)
+        #batch_indices = torch.arange(pred_sph.shape[0]).view(-1, 1, 1)
 
         # Expand the batch indices tensor to match the shape of knn_idx
-        batch_indices = batch_indices.expand(-1, self.grid.shape[1], 3)
+        #batch_indices = batch_indices.expand(-1, self.grid.shape[1], 3)
         # Use advanced indexing to select the k nearest neighbours
-        pred_tmp = pred_sph[batch_indices, pred_idx, :]
+        #pred_tmp = pred_sph[batch_indices, pred_idx, :]
         # calculated the distances again
-        pred_dist = torch.sqrt(((pred_tmp - self.grid.expand(pred_sph.shape[0], -1, -1).unsqueeze(-2))**2).sum(-1))
+        #pred_dist = torch.sqrt(((pred_tmp - self.grid.expand(pred_sph.shape[0], -1, -1).unsqueeze(-2))**2).sum(-1))
 
-        #pred_dist, pred_idx = self.knn_obj(pred_sph, self.grid.expand(pred_sph.shape[0], -1, -1))
+        pred_dist, pred_idx = self.knn_obj(pred_sph, self.grid.expand(pred_sph.shape[0], -1, -1))
         
         # OLD VERSION FOR NN
         #pred_dist, pred_idx = fre.three_nn(self.grid.expand(pred_sph.shape[0], -1, -1).contiguous(), pred_sph)
@@ -279,7 +279,7 @@ class FreLossPrecomputed(nn.Module):
 
         #return (pred_coeffs.real - target_coeffs.real)**2
         output = torch.sum(((pred_coeffs.real - target_coeffs)**2)*self.rect_weights, dim=(1, 2)).mean() 
-        if(pred.requires_grad):
+        if(pred.requires_grad and False):
             [grad_dist_pred] = torch.autograd.grad(pred_dist.sum(), [pred_tmp], retain_graph=True)
             [grad_full, grad_coeff, pred_interp, pred_dist] = torch.autograd.grad(output, [pred, pred_coeffs, pred_interp, pred_dist], retain_graph=True)
             #print the outputs that result in nan gradients

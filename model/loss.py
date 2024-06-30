@@ -12,10 +12,13 @@ from knn_cuda import KNN
 from pytorch_fre.pytorch_fre_modules import FreLossPrecomputed, FreLoss
 import math
 
+from geomloss import SamplesLoss
+
 # workaround to get pi
 torch.pi = math.pi
 #freLoss = FreLoss(512, 1024, 50, 50)
 freLoss = None#FreLoss(256, 512, 50, 50)
+geomEmdLoss = None
 
 def fre_loss(output, target):
     global freLoss
@@ -103,3 +106,10 @@ def hausdorff_loss(self, P, Q):
         hausdorff_distance = torch.max(hausdorff_P_to_Q, hausdorff_Q_to_P)
         
         return torch.mean(hausdorff_distance)
+    
+def geom_emd_loss(output, target):
+    global geomEmdLoss
+    if(geomEmdLoss is None):
+        geomEmdLoss = SamplesLoss("sinkhorn", p=2, blur=0.05)
+    return torch.mean(geomEmdLoss(output, target))
+    

@@ -12,6 +12,41 @@ import numpy as np
 import matplotlib.image
 
 
+def _pairwise_EMD_CD_(sample_pcs, ref_pcs, batch_size, accelerated_cd=True):
+    N_sample = sample_pcs.shape[0]
+    N_ref = ref_pcs.shape[0]
+    all_cd = []
+    all_emd = []
+    iterator = range(N_sample)
+    for sample_b_start in tqdm(iterator):
+        sample_batch = sample_pcs[sample_b_start]
+
+        cd_lst = []
+        emd_lst = []
+        for ref_b_start in range(0, N_ref, batch_size):
+            ref_b_end = min(N_ref, ref_b_start + batch_size)
+            ref_batch = ref_pcs[ref_b_start:ref_b_end]
+
+            batch_size_ref = ref_batch.size(0)
+            sample_batch_exp = sample_batch.view(1, -1, 3).expand(batch_size_ref, -1, -1)
+            sample_batch_exp = sample_batch_exp.contiguous()
+
+            dl, dr, _, _ = cham3D(sample_batch_exp.cuda(), ref_batch.cuda())
+            cd_lst.append((dl.mean(dim=1) + dr.mean(dim=1)).view(1, -1).detach().cpu())
+
+            emd_batch = EMD(sample_batch_exp.cuda(), ref_batch.cuda(), transpose=False)
+            emd_lst.append(emd_batch.view(1, -1).detach().cpu())
+
+        cd_lst = torch.cat(cd_lst, dim=1)
+        emd_lst = torch.cat(emd_lst, dim=1)
+        all_cd.append(cd_lst)
+        all_emd.append(emd_lst)
+
+    all_cd = torch.cat(all_cd, dim=0)  # N_sample, N_ref
+    all_emd = torch.cat(all_emd, dim=0)  # N_sample, N_ref
+
+    return all_cd, all_emd
+
 def main(config):
     logger = config.get_logger('eval')
 
@@ -49,24 +84,31 @@ def main(config):
     #total_metrics = torch.zeros(len(metric_fns))
 
     with torch.no_grad():
+        ref = []
+        
         for i, data in enumerate(tqdm(data_loader)):
             print(data)
             data #.to(device)
             output = model(data)
-
-            #
-            # save sample images, or do something with output here
-            #
-
-            # computing loss, metrics on test set
-            #loss = loss_fn(output, target)
             batch_size = data.shape[0]
-            #total_loss += loss.item() * batch_size
-            #for i, metric in enumerate(metric_fns):
-            #    total_metrics[i] += metric(output, target) * batch_size
-            img = visualize_batch(data.cpu(), output.cpu(), output.cpu())
             
-            matplotlib.image.imsave('output/{}.png'.format(i), np.ascontiguousarray(img.transpose(1,2,0)))
+            
+            x = data['test_points']
+            m, s = data['mean'].float(), data['std'].float()
+
+            ref.append(x*s + m)
+
+        ref_pcs = torch.cat(ref, dim=0).contiguous()
+
+        # logger.info("Loading sample path: %s" % (opt.eval_path))
+        # sample_pcs = torch.load(opt.eval_path).contiguous()
+
+        # logger.info("Generation sample size:%s reference size: %s"
+        #     % (sample_pcs.size(), ref_pcs.size()))
+
+
+    # Compute metrics
+    results = compute_all_metrics(sample_pcs, ref_pcs, opt.batch_size)
 
     #n_samples = len(data_loader.sampler)
     #log = {'loss': total_loss / n_samples}

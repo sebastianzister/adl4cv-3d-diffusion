@@ -88,6 +88,19 @@ def main(config):
     #total_loss = 0.0
     #total_metrics = torch.zeros(len(metric_fns))
 
+    _, test_dataset = get_dataset('ShapeNetCore.v2.PC15k/', 4096, 'car', use_mask=False)
+    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=16, shuffle=False, num_workers=2, drop_last=False)
+
+    ref = []
+    for data in tqdm(test_dataloader, total=len(test_dataloader), desc='Generating Samples'):
+        x = data['test_points']
+        m, s = data['mean'].float(), data['std'].float()
+
+        ref.append(x*s + m)
+
+    ref_pcs = torch.cat(ref, dim=0).contiguous()
+    print(ref_pcs)
+
     with torch.no_grad():
         ref = []
         

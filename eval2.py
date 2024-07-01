@@ -54,6 +54,19 @@ def _pairwise_EMD_CD_(sample_pcs, ref_pcs, batch_size, accelerated_cd=True):
 
     return all_cd, all_emd
 
+def lgan_mmd_cov(all_dist):
+    N_sample, N_ref = all_dist.size(0), all_dist.size(1)
+    min_val_fromsmp, min_idx = torch.min(all_dist, dim=1)
+    min_val, _ = torch.min(all_dist, dim=0)
+    mmd = min_val.mean()
+    mmd_smp = min_val_fromsmp.mean()
+    cov = float(min_idx.unique().view(-1).size(0)) / float(N_ref)
+    cov = torch.tensor(cov).to(all_dist)
+    return {
+        'lgan_mmd': mmd,
+        'lgan_cov': cov,
+        'lgan_mmd_smp': mmd_smp,
+    }
 
 def get_dataset(dataroot, npoints,category,use_mask=False):
     tr_dataset = ShapeNet15kPointClouds(root_dir=dataroot,

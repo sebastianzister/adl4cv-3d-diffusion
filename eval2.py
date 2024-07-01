@@ -154,8 +154,17 @@ def main(config):
 
 
     # Compute metrics
-            results = _pairwise_EMD_CD_(data, ref_pcs, batch_size)
-            print(results)
+            M_rs_cd, M_rs_emd = _pairwise_EMD_CD_(data, ref_pcs, batch_size)
+
+            res_cd = lgan_mmd_cov(M_rs_cd.t())
+            print({
+                "%s-CD" % k: v for k, v in res_cd.items()
+            })
+
+            res_emd = lgan_mmd_cov(M_rs_emd.t())
+            print({
+                "%s-EMD" % k: v for k, v in res_emd.items()
+            })
 
     #n_samples = len(data_loader.sampler)
     #log = {'loss': total_loss / n_samples}

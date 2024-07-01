@@ -93,7 +93,7 @@ def main(config):
         ref.append(x*s + m)
 
     ref_pcs = torch.cat(ref, dim=0).contiguous()
-    print(ref_pcs.shape)
+    print("ref:", ref_pcs.shape)
 
     # Setup Data Loader for Samples
     data_loader = getattr(module_data, config['data_loader']['type'])(
@@ -136,6 +136,7 @@ def main(config):
             data = data.to(device)
             output = model(data)
             batch_size = data.shape[0]
+
             
             
             #x = data['test_points']
@@ -153,7 +154,7 @@ def main(config):
 
 
     # Compute metrics
-            results = _pairwise_EMD_CD_(data, data, batch_size)
+            results = _pairwise_EMD_CD_(data, ref_pcs, batch_size)
             print(results)
 
     #n_samples = len(data_loader.sampler)

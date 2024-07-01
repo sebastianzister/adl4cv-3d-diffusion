@@ -15,6 +15,8 @@ from metrics.PyTorchEMD.emd import earth_mover_distance as EMD
 from metrics.ChamferDistancePytorch.chamfer3D.dist_chamfer_3D import chamfer_3DDist
 from metrics.ChamferDistancePytorch.fscore import fscore
 
+from dataset.shapenet_data_pc import ShapeNet15kPointClouds
+
 cham3D = chamfer_3DDist()
 
 def _pairwise_EMD_CD_(sample_pcs, ref_pcs, batch_size, accelerated_cd=True):
@@ -52,6 +54,30 @@ def _pairwise_EMD_CD_(sample_pcs, ref_pcs, batch_size, accelerated_cd=True):
 
     return all_cd, all_emd
 
+
+def get_dataset(dataroot, npoints,category,use_mask=False):
+    tr_dataset = ShapeNet15kPointClouds(root_dir=dataroot,
+        categories=[category], split='train',
+        tr_sample_size=npoints,
+        te_sample_size=npoints,
+        scale=1.,
+        normalize_per_shape=False,
+        normalize_std_per_axis=False,
+        random_subsample=True, use_mask = use_mask)
+    te_dataset = ShapeNet15kPointClouds(root_dir=dataroot,
+        categories=[category], split='val',
+        tr_sample_size=npoints,
+        te_sample_size=npoints,
+        scale=1.,
+        normalize_per_shape=False,
+        normalize_std_per_axis=False,
+        all_points_mean=tr_dataset.all_points_mean,
+        all_points_std=tr_dataset.all_points_std,
+        use_mask=use_mask
+    )
+    return tr_dataset, te_dataset
+
+
 def main(config):
     logger = config.get_logger('eval')
 
@@ -88,7 +114,7 @@ def main(config):
     #total_loss = 0.0
     #total_metrics = torch.zeros(len(metric_fns))
 
-    _, test_dataset = get_dataset('ShapeNetCore.v2.PC15k/', 4096, 'car', use_mask=False)
+    _, test_dataset = get_dataset('data/ShapeNetCore.v2.PC15k/', 4096, 'car', use_mask=False)
     test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=16, shuffle=False, num_workers=2, drop_last=False)
 
     ref = []

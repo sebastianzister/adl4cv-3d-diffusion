@@ -111,7 +111,7 @@ def main(config):
     # Setup Data Loader for Samples
     data_loader = getattr(module_data, config['data_loader']['type'])(
         config['data_loader']['args']['data_dir'],
-        batch_size=16,
+        batch_size=8,
         shuffle=False,
         validation_split=0.0,
         training=False,
@@ -140,7 +140,7 @@ def main(config):
     
 
     with torch.no_grad():
-        ref = []
+        gen = []
         
         for i, data in enumerate(tqdm(data_loader)):
             print(len(data))
@@ -148,8 +148,9 @@ def main(config):
 
             data = data.to(device)
             output = model(data)
-            batch_size = data.shape[0]
-
+            gen.append(output)
+        gen_pcs = torch.cat(gen, dim=0).contiguous()
+        batch_size = 16
             
             
             #x = data['test_points']
@@ -167,17 +168,17 @@ def main(config):
 
 
     # Compute metrics
-            M_rs_cd, M_rs_emd = _pairwise_EMD_CD_(data, ref_pcs, batch_size)
+        M_rs_cd, M_rs_emd = _pairwise_EMD_CD_(gen_pcs, ref_pcs, batch_size)
 
-            res_cd = lgan_mmd_cov(M_rs_cd.t())
-            print({
-                "%s-CD" % k: v for k, v in res_cd.items()
-            })
+        res_cd = lgan_mmd_cov(M_rs_cd.t())
+        print({
+            "%s-CD" % k: v for k, v in res_cd.items()
+        })
 
-            res_emd = lgan_mmd_cov(M_rs_emd.t())
-            print({
-                "%s-EMD" % k: v for k, v in res_emd.items()
-            })
+        res_emd = lgan_mmd_cov(M_rs_emd.t())
+        print({
+            "%s-EMD" % k: v for k, v in res_emd.items()
+        })
 
     #n_samples = len(data_loader.sampler)
     #log = {'loss': total_loss / n_samples}

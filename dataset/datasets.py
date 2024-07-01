@@ -50,7 +50,7 @@ class PointDetailDataset(Dataset):
 
 class PVDDataset(Dataset):
     def __init__(self, root_dir="data", train=True , transform=None):
-        self.data = torch.load(os.path.join(root_dir, 'sample.pth')).numpy()
+        self.data = torch.load(os.path.join(root_dir, 'samples.pth')).numpy()
         
         # normalize to unit sphere
         centroid = np.mean(self.data[..., :3], axis=1, keepdims=True)

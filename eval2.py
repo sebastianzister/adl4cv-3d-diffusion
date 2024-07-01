@@ -11,6 +11,11 @@ from utils import visualize_batch
 import numpy as np
 import matplotlib.image
 
+from metrics.PyTorchEMD.emd import earth_mover_distance as EMD
+from metrics.ChamferDistancePytorch.chamfer3D.dist_chamfer_3D import chamfer_3DDist
+from metrics.ChamferDistancePytorch.fscore import fscore
+
+cham3D = chamfer_3DDist()
 
 def _pairwise_EMD_CD_(sample_pcs, ref_pcs, batch_size, accelerated_cd=True):
     N_sample = sample_pcs.shape[0]
@@ -95,12 +100,12 @@ def main(config):
             batch_size = data.shape[0]
             
             
-            x = data['test_points']
-            m, s = data['mean'].float(), data['std'].float()
+            #x = data['test_points']
+            #m, s = data['mean'].float(), data['std'].float()
 
-            ref.append(x*s + m)
+            #ref.append(x*s + m)
 
-        ref_pcs = torch.cat(ref, dim=0).contiguous()
+        #ref_pcs = torch.cat(ref, dim=0).contiguous()
 
         # logger.info("Loading sample path: %s" % (opt.eval_path))
         # sample_pcs = torch.load(opt.eval_path).contiguous()
@@ -110,7 +115,8 @@ def main(config):
 
 
     # Compute metrics
-    results = compute_all_metrics(sample_pcs, ref_pcs, opt.batch_size)
+            results = _pairwise_EMD_CD_(data, data, batch_size)
+            print(results)
 
     #n_samples = len(data_loader.sampler)
     #log = {'loss': total_loss / n_samples}

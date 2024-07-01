@@ -81,7 +81,21 @@ def get_dataset(dataroot, npoints,category,use_mask=False):
 def main(config):
     logger = config.get_logger('eval')
 
-    # setup data_loader instances
+    # Setup Data Loader for References
+    _, test_dataset = get_dataset('data/ShapeNetCore.v2.PC15k/', 4096, 'car', use_mask=False)
+    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=16, shuffle=False, num_workers=2, drop_last=False)
+    
+    ref = []
+    for data in tqdm(test_dataloader, total=len(test_dataloader), desc='Generating Samples'):
+        x = data['test_points']
+        m, s = data['mean'].float(), data['std'].float()
+
+        ref.append(x*s + m)
+
+    ref_pcs = torch.cat(ref, dim=0).contiguous()
+    print(ref_pcs.shape)
+
+    # Setup Data Loader for Samples
     data_loader = getattr(module_data, config['data_loader']['type'])(
         config['data_loader']['args']['data_dir'],
         batch_size=16,
@@ -91,13 +105,8 @@ def main(config):
         num_workers=2
     )
 
-    # build model architecture
+    # Setup Model Architecture
     model = config.init_obj('arch', module_arch)
-    #logger.info(model)
-
-    # get function handles of loss and metrics
-    #loss_fn = getattr(module_loss, config['loss'])
-    #metric_fns = [getattr(module_metric, met) for met in config['metrics']]
 
     logger.info('Loading checkpoint: {} ...'.format(config.resume))
     checkpoint = torch.load(config.resume)
@@ -114,18 +123,8 @@ def main(config):
     #total_loss = 0.0
     #total_metrics = torch.zeros(len(metric_fns))
 
-    _, test_dataset = get_dataset('data/ShapeNetCore.v2.PC15k/', 4096, 'car', use_mask=False)
-    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=16, shuffle=False, num_workers=2, drop_last=False)
 
-    ref = []
-    for data in tqdm(test_dataloader, total=len(test_dataloader), desc='Generating Samples'):
-        x = data['test_points']
-        m, s = data['mean'].float(), data['std'].float()
-
-        ref.append(x*s + m)
-
-    ref_pcs = torch.cat(ref, dim=0).contiguous()
-    print(ref_pcs)
+    
 
     with torch.no_grad():
         ref = []

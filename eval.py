@@ -19,7 +19,7 @@ def main(config):
     # setup data_loader instances
     data_loader = getattr(module_data, config['data_loader']['type'])(
         config['data_loader']['args']['data_dir'],
-        batch_size=16,
+        batch_size=8,
         shuffle=False,
         validation_split=0.0,
         training=False,
@@ -53,6 +53,9 @@ def main(config):
 
     with torch.no_grad():
         for i, data in enumerate(tqdm(data_loader)):
+            renormalize = True#data.isinstance(tuple)
+            if(renormalize):
+                data, centroid, furthest_distance = data
             data = data.to(device)
             output = model(data)
 
@@ -67,8 +70,14 @@ def main(config):
             #for i, metric in enumerate(metric_fns):
             #    total_metrics[i] += metric(output, target) * batch_size
             output_cpu = output.cpu()
-            outputs = torch.cat((outputs, output_cpu), dim=0)
             img = visualize_batch(data.cpu(), output_cpu, output.cpu())
+
+            # undo normalization
+            if(renormalize):
+                output_cpu = output_cpu[..., :3] * furthest_distance.unsqueeze(-1) + centroid
+            
+
+            outputs = torch.cat((outputs, output_cpu), dim=0)
             
             matplotlib.image.imsave('output/{}.png'.format(i), np.ascontiguousarray(img.transpose(1,2,0)))
 

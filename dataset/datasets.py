@@ -53,16 +53,17 @@ class PVDDataset(Dataset):
         self.data = torch.load(os.path.join(root_dir, 'samples.pth')).numpy()
         
         # normalize to unit sphere
-        centroid = np.mean(self.data[..., :3], axis=1, keepdims=True)
-        furthest_distance = np.amax(np.sqrt(np.sum((self.data[..., :3] - centroid) ** 2, axis=-1)), axis=1, keepdims=True)
-        self.radius = furthest_distance[:, 0] # not very sure?
+        self.centroid = np.mean(self.data[..., :3], axis=1, keepdims=True)
+        self.furthest_distance = np.amax(np.sqrt(np.sum((self.data[..., :3] - self.centroid) ** 2, axis=-1)), axis=1, keepdims=True)
+        self.radius = self.furthest_distance[:, 0] # not very sure?
 
 #        self.radius = np.ones(shape=(len(self.input)))
-        self.data[..., :3] -= centroid
-        self.data[..., :3] /= np.expand_dims(furthest_distance, axis=-1)
+        self.data[..., :3] -= self.centroid
+        self.data[..., :3] /= np.expand_dims(self.furthest_distance, axis=-1)
     
     def __len__(self):
         return len(self.data)
     
     def __getitem__(self, idx):
-        return self.data[idx]
+        return (self.data[idx], self.centroid[idx], self.furthest_distance[idx])
+        #return self.data[idx]

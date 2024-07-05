@@ -123,6 +123,8 @@ class Trainer(BaseTrainer):
             
         # end timer
         print("Epoch {} took {:.2f} seconds".format(epoch, time.time() - start_time))
+        self.writer.set_step(epoch, 'train_epoch')
+        self.writer.add_scalar('loss', log['loss'])
         return log
 
     def _valid_epoch(self, epoch):

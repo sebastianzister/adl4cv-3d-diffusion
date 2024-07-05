@@ -78,19 +78,23 @@ class PointNetSAModule(nn.Module):
         self.mlps = nn.ModuleList(mlps)
 
     def forward(self, inputs):
-        features, coords, temb = inputs
+        features, coords = inputs
         centers_coords = F.furthest_point_sample(coords, self.num_centers)
         features_list = []
         for grouper, mlp in zip(self.groupers, self.mlps):
-            features, temb = mlp(grouper(coords, centers_coords, temb, features))
-            features_list.append(features.max(dim=-1).values)
+            groups = grouper(coords, centers_coords, features)
+            
+            mlp_grouped = mlp(groups)    
+            features_list.append(mlp_grouped.max(dim=-1).values)
+            
         if len(features_list) > 1:
-            return features_list[0], centers_coords, temb.max(dim=-1).values if temb.shape[1] > 0 else temb
+            return torch.cat(features_list, dim=1), centers_coords
         else:
-            return features_list[0], centers_coords, temb.max(dim=-1).values if temb.shape[1] > 0 else temb
+            return features_list[0], centers_coords
 
     def extra_repr(self):
         return f'num_centers={self.num_centers}, out_channels={self.out_channels}'
+
 
 
 class PointNetFPModule(nn.Module):
@@ -100,14 +104,14 @@ class PointNetFPModule(nn.Module):
 
     def forward(self, inputs):
         if len(inputs) == 3:
-            points_coords, centers_coords, centers_features, temb = inputs
+            points_coords, centers_coords, centers_features = inputs
             points_features = None
         else:
-            points_coords, centers_coords, centers_features, points_features, temb = inputs
+            points_coords, centers_coords, centers_features, points_features = inputs
         interpolated_features = F.nearest_neighbor_interpolate(points_coords, centers_coords, centers_features)
-        interpolated_temb = F.nearest_neighbor_interpolate(points_coords, centers_coords, temb)
+        
         if points_features is not None:
             interpolated_features = torch.cat(
                 [interpolated_features, points_features], dim=1
             )
-        return self.mlp(interpolated_features), points_coords, interpolated_temb
+        return self.mlp(interpolated_features), points_coords

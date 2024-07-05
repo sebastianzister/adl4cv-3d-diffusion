@@ -1,5 +1,5 @@
 {
-    "name": "PVCU Metrics",
+    "name": "PointDetail",
     "n_gpu": 1,
 
     "arch": {
@@ -14,12 +14,12 @@
         "type": "PVDDataLoader",
         "args":{
             "data_dir": "data/",
-            "batch_size": 16,
+            "batch_size": 1,
             "shuffle": false,
             "validation_split": 0.0,
-            "num_workers": 0,
-            "pin_memory": false,
-            "size" : 300
+            "num_workers": 2,
+            "pin_memory": true,
+            "size" : 2
         }
     },
     "optimizer": {
@@ -36,7 +36,6 @@
     ],
     "lr_scheduler": {
         "type": "StepLR",
-        "pass_optimizer": true,
         "args": {
             "step_size": 2000,
             "gamma": 0.1
@@ -46,11 +45,11 @@
         "epochs": 1005,
 
         "save_dir": "saved/",
-        "save_period": 10,
+        "save_period": 200,
         "verbosity": 2,
         
         "monitor": "min val_loss",
-        "early_stop": 10,
+        "early_stop": 0,
         "do_validation": false,
         "val_per_epochs" : 5,
         "visualize_per_epochs" : 5,    
@@ -59,3 +58,4 @@
         "tensorboard": true
     }
 }
+

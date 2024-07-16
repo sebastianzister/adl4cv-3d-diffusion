@@ -1,9 +1,9 @@
 {
-    "name": "PUNet_Baseline_PVDEMDScale",
+    "name": "PVCUFre4x_chair",
     "n_gpu": 1,
 
     "arch": {
-        "type": "PUNet",
+        "type": "PVCU_Fast",
         "args": {
             "use_bn": true,
             "npoint": 2048,
@@ -14,13 +14,15 @@
         "type": "ShapeNetAugmentedDataLoader",
         "args":{
             "data_dir": "data/",
-            "batch_size": 24,
+            "batch_size": 32,
             "shuffle": true,
             "validation_split": 0.2,
             "num_workers": 4,
             "pin_memory": false,
             "tr_sample_size": 4096,
-            "down_ratio": 2
+            "down_ratio": 2,
+            "calc_harmonics": true,
+            "categories": ["chair"]
         }
     },
     "optimizer": {
@@ -31,23 +33,23 @@
             "amsgrad": true
         }
     },
-    "loss": ["emd_loss", "repulsion_loss"],
-    "loss_weight": [5.0, 1.0],
+    "loss": ["pu_emd_loss", "repulsion_loss", "fre_loss"],
+    "loss_weight": [100.0, 0.1, 4.0],
     "metrics": [
     ],
     "lr_scheduler": {
         "type": "StepLR",
-        "pass_optimizer": true,
+        "pass_optimizer": false,
         "args": {
             "step_size": 2000,
             "gamma": 0.1
         }
     },
     "trainer": {
-        "epochs": 400,
+        "epochs": 500,
 
         "save_dir": "saved/",
-        "save_period": 100,
+        "save_period": 25,
         "verbosity": 2,
         
         "monitor": "min val_loss",

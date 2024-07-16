@@ -1,65 +1,64 @@
 {
-    "name": "PUNet_UP4",
+    "name": "PUVCUFre4x_fast_Chair_finetune",
     "n_gpu": 1,
+
     "arch": {
-        "type": "PUNet",
+        "type": "PVCU_Fast",
         "args": {
             "use_bn": true,
             "npoint": 2048,
-            "up_ratio": 4
+            "up_ratio": 2 
         }
     },
     "data_loader": {
         "type": "ShapeNetAugmentedDataLoader",
-        "args": {
+        "args":{
             "data_dir": "data/",
             "batch_size": 32,
             "shuffle": true,
             "validation_split": 0.2,
-            "num_workers": 0,
+            "num_workers": 4,
             "pin_memory": false,
-            "tr_sample_size": 8192,
-            "down_ratio": 4
+            "tr_sample_size": 4096,
+            "down_ratio": 2,
+            "calc_harmonics": true,
+            "categories": ["chair"]
         }
     },
     "optimizer": {
         "type": "Adam",
-        "args": {
+        "args":{
             "lr": 0.0001,
-            "weight_decay": 0,
+            "weight_decay": 0.0005,
             "amsgrad": true
         }
     },
-    "loss": [
-        "cd_loss",
-        "repulsion_loss",
-        "emd_loss"
+    "loss": ["pu_emd_loss", "repulsion_loss", "fre_loss"],
+    "loss_weight": [100.0, 0.1, 4.0],
+    "metrics": [
     ],
-    "loss_weight": [
-        1000.0,
-        1.0,
-        100.0
-    ],
-    "metrics": [],
     "lr_scheduler": {
-        "pass_optimizer": false,
         "type": "StepLR",
+        "pass_optimizer": false,
         "args": {
-            "step_size": 600,
+            "step_size": 2000,
             "gamma": 0.1
         }
     },
     "trainer": {
         "epochs": 600,
+
         "save_dir": "saved/",
-        "save_period": 50,
+        "save_period": 25,
         "verbosity": 2,
+        
         "monitor": "min val_loss",
-        "early_stop": 0,
+        "early_stop": 10,
         "do_validation": false,
-        "val_per_epochs": 5,
-        "visualize_per_epochs": 50,
-        "visualize_train_batch": 50,
+        "val_per_epochs" : 5,
+        "visualize_per_epochs" : 50,    
+        "visualize_train_batch" : 50,
+
         "tensorboard": true
     }
 }

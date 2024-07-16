@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from base import BaseModel
 
 # PVCNN2
-#from model.pvcnn_generation import *
+from model.pvcnn_generation import *
 
 # PU-Net
 from pointnet2_ops.pointnet2_modules import PointnetSAModule, PointnetFPModule
@@ -20,7 +20,7 @@ import time
 #from model.pvcnn_utils import *
 
 # disentagled refinement
-from model.disentangled_refinement import GlobalRefinementUnit
+from model.disentangled_refinement import GlobalRefinementUnit, LocalRefinementUnit
 
 class MnistModel(BaseModel):
     def __init__(self, num_classes=10):
@@ -264,7 +264,7 @@ class PUNet(BaseModel):
                 pt_utils.SharedMLP([in_ch, 64], bn=use_bn),
                 pt_utils.SharedMLP([64, 3], activation=None, bn=False))
 
-    def forward(self, points, npoint=None, visualize_latent=False):
+    def forward(self, points, npoint=None, visualize_latent=False, return_features=False):
         if npoint is None:
             npoints = [None] * len(self.npoints)
         else:
@@ -329,6 +329,8 @@ class PUNet(BaseModel):
         else:
             output = recon
             
+        if(return_features):
+            return output.squeeze(-1).contiguous(), r_feats.squeeze(-1)
         return output.squeeze(-1).transpose(1, 2).contiguous() # bs, 3, r * N
 
 # ---------------------------------------------------------------------------------------
@@ -513,3 +515,219 @@ class PVCU(BaseModel):
         # reconstruction
         output = self.pcd_layer(r_feats)  # bs, 3, r * N, 1
         return output.squeeze(-1).transpose(1, 2).contiguous() # bs, 3, r * N
+
+class PVCU_Fast(BaseModel):
+    def __init__(self, npoint=1024, up_ratio=4, use_normal=False, use_bn=False):
+        super().__init__()
+
+        self.npoint = npoint
+        self.use_normal = use_normal
+        self.up_ratio = up_ratio
+
+        self.npoints = [
+            npoint, 
+            npoint // 2, 
+#            npoint // 4, 
+#            npoint // 8
+        ]
+
+        mlps = [
+            [32, 32, 64],
+            [64, 64, 128],
+            [128, 128, 256],
+            [256, 256, 512]
+        ]
+
+        radius = [0.05, 0.1, 0.2, 0.3]
+
+        nsamples = [32, 32, 32, 32]
+
+        # for 4 downsample layers
+        in_ch = 0 if not use_normal else 3
+
+        sa_blocks = [
+            ((32, 1, 32), (2048, 0.05, 32, (32, 32, 64))),
+            ((64, 1, 16), (1024, 0.1, 32, (64, 64, 128))),
+#            ((128, 3, 16), (512, 0.2, 32, (128, 128, 256))),
+#            (None, (256, 0.3, 32, (256, 256, 512))),
+        ]
+        
+        sa_layers, sa_in_channels, channels_sa_features, _ = create_pointnet2_sa_components(
+            sa_blocks=sa_blocks, extra_feature_channels=0, with_se=False, embed_dim=0,
+            use_att=False, dropout=0.0, width_multiplier=1, voxel_resolution_multiplier=1
+        )
+
+        self.SA_modules = nn.ModuleList(sa_layers)
+
+        '''
+        self.SA_modules = nn.ModuleList()
+        for k in range(len(self.npoints)):
+            self.SA_modules.append(
+                PointnetSAModule(
+                    npoint=self.npoints[k], #2048
+                    radius=radius[k],       #0.05
+                    nsample=nsamples[k],    #32
+                    mlp=[in_ch] + mlps[k],
+                    use_xyz=True,
+                    bn=use_bn))
+            in_ch = mlps[k][-1]
+        '''
+
+        # upsamples for layer 2 ~ 4
+        fp_blocks = [
+            ((64, 64), (64, 1, 32)),
+#            ((64, 64), (64, 1, 32)),
+#            ((64, 64), (64, 1, 16)),
+        ]
+
+        channels_sa_features = 0
+        sa_in_channels = [0, 256-64, 128] #[0, 512-64, 256-64, 128]
+        # print(channels_sa_features)
+        # print(sa_in_channels)
+
+        fp_layers, channels_fp_features = create_pointnet2_fp_modules(
+            fp_blocks=fp_blocks, in_channels=channels_sa_features, sa_in_channels=sa_in_channels, with_se=False, 
+            embed_dim=0, use_att=False, dropout=0.0, width_multiplier=1, voxel_resolution_multiplier=1
+        )
+        self.FP_Modules = nn.ModuleList(fp_layers)
+
+        '''
+        self.FP_Modules = nn.ModuleList()
+        for k in range(len(self.npoints) - 1):
+            self.FP_Modules.append(
+                PointnetFPModule(
+                    mlp=[mlps[k + 1][-1], 64], 
+                    bn=use_bn))
+        '''
+        
+        # feature Expansion
+        in_ch = len(self.npoints) * 64 + 3 # 4 layers + input xyz
+        self.FC_Modules = nn.ModuleList()
+        for k in range(up_ratio):
+            self.FC_Modules.append(
+                pt_utils.SharedMLP(
+                    [in_ch, 256, 128],
+                    bn=use_bn))
+
+        # coordinate reconstruction
+        in_ch = 128
+        self.pcd_layer = nn.Sequential(
+            pt_utils.SharedMLP([in_ch, 64], bn=use_bn),
+            pt_utils.SharedMLP([64, 3], activation=None, bn=False)) 
+
+    def forward(self, points, npoint=None, visualize_latent=False):
+        if npoint is None:
+            npoints = [None] * len(self.npoints)
+        else:
+            npoints = []
+            for k in range(len(self.npoints)):
+                npoints.append(npoint // 2 ** k)
+
+        # points: bs, N, 3/6
+        #xyz = points[..., :3].contiguous()
+        #feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
+
+        points = points.permute(0, 2, 1)
+        # inputs : [B, in_channels + S, N]
+        xyz = points[:, :3, :].contiguous()
+        feats = points[:, :, :].contiguous()
+        
+        # print(xyz.shape)
+        #print(feats.shape)
+        # downsample
+        l_xyz, l_feats = [xyz], [feats]
+        for k in range(len(self.SA_modules)):
+            lk_feats, lk_xyz = self.SA_modules[k]((l_feats[k], l_xyz[k]))
+            l_xyz.append(lk_xyz)
+            l_feats.append(lk_feats)
+
+            # print(k, 'xyz  ', lk_xyz.shape)
+            # print(k, 'feats', lk_feats.shape)
+
+        #print(l_xyz[0].shape)
+        #print(l_xyz[1].shape)
+        #print(l_feats[0].shape)
+        #print(l_feats[1].shape)
+
+        # upsample
+        up_feats = []
+        for k in range(len(self.FP_Modules)):
+            points_coords = xyz
+            points_features = None
+            centers_coords = l_xyz[k + 2]
+            centers_features = l_feats[k + 2] #.permute(1, 0, 2)
+
+            # print("\nFP -----------------------")
+            # print(points_coords.shape)
+            # print("points_features.shape")
+            # print(centers_coords.shape)
+            # print(centers_features.shape)
+            
+            # order should be: centers_coords, points_coords, centers_features (according to pvd, but then 1024 points are missing)
+            upk_feats, upk_coords = self.FP_Modules[k]((points_coords, centers_coords, centers_features))
+            # print(upk_feats.shape)
+            # print(upk_coords.shape)
+            #pvd concats feats and coords, but we don't need to?
+            #upk_feats1 = torch.cat([upk_feats.permute(1, 0, 2), upk_coords], dim=1)
+            up_feats.append(upk_feats) #.permute(1, 0, 2))
+
+        # aggregation
+        # [xyz, l0, l1, l2, l3]
+        # print("\nFC --------------------------")
+        # print(xyz.shape)
+        # print(l_feats[1].shape)
+        # print(up_feats[0].shape)
+
+        feats = torch.cat([
+            xyz,
+            l_feats[1], #should be l_feats[1] but dimensions are wrong
+            *up_feats
+        ], dim=1).unsqueeze(-1)  # bs, mid_ch, N, 1
+
+        # expansion
+        r_feats = []
+        # print(feats.shape)
+        for k in range(len(self.FC_Modules)):
+            feat_k = self.FC_Modules[k](feats) # bs, mid_ch, N, 1
+            r_feats.append(feat_k)
+        r_feats = torch.cat(r_feats, dim=2) # bs, mid_ch, r * N, 1
+
+        # reconstruction
+        output = self.pcd_layer(r_feats)  # bs, 3, r * N, 1
+        return output.squeeze(-1).transpose(1, 2).contiguous() # bs, 3, r * N
+        
+class PUNetRef(BaseModel):
+    def __init__(self, npoint=1024, up_ratio=4, use_normal=False, use_bn=False, checkpoint_path=None):
+        super().__init__()
+        
+        self.expand = PUNet(npoint, up_ratio, use_normal, use_bn)
+        
+
+        
+
+        if(checkpoint_path is not None):
+            self.expand.load_state_dict(torch.load(checkpoint_path)['state_dict'])
+            for param in self.expand.parameters():
+                param.requires_grad = False
+        
+        self.global_ref = GlobalRefinementUnit(128, 128)
+        
+        self.local_ref = LocalRefinementUnit(128, 128, 32)
+        
+        in_ch = 128
+        self.pcd_layer = nn.Sequential(
+            pt_utils.SharedMLP([in_ch, 64], bn=use_bn),
+            pt_utils.SharedMLP([64, 3], activation=None, bn=False)) 
+        
+    def forward(self, points, visualize_latent=False):
+        coarse_xyz, coarse_feat = self.expand(points, return_features=True)
+        
+        global_ref_feats = self.global_ref(coarse_feat, coarse_xyz)
+        local_ref_feats = self.local_ref(coarse_feat, coarse_xyz)
+        
+        fine_feats = global_ref_feats + local_ref_feats
+        
+        offset = self.pcd_layer(fine_feats.unsqueeze(-1))
+        output = offset.squeeze(-1)#coarse_xyz + offset.squeeze(-1)
+        return output.transpose(1, 2).contiguous()
+

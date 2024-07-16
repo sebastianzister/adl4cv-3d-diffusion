@@ -23,7 +23,8 @@ def main(config):
         shuffle=False,
         validation_split=0.0,
         training=False,
-        num_workers=2
+        num_workers=2,
+        categories=config['data_loader']['args']['categories']
     )
 
     # build model architecture

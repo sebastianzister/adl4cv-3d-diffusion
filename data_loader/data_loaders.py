@@ -50,7 +50,8 @@ class PVDDataLoader(BaseDataLoader):
     """
     PVD data loading using BaseDataLoader
     """
-    def __init__(self, data_dir, batch_size, shuffle=False, validation_split=0.0, num_workers=0, training=True, size=None, pin_memory=False):
+    def __init__(self, data_dir, batch_size, shuffle=False, validation_split=0.0, num_workers=0, training=True, size=None, pin_memory=False, categories=["car"]):
         print("PVDDataLoader BS: ", batch_size)
-        self.dataset = PVDDataset()
+        print("PVDDataLoader categories: ", categories)
+        self.dataset = PVDDataset(categories=categories)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers, pin_memory=pin_memory)

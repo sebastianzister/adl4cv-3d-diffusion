@@ -23,9 +23,15 @@ geomEmdLoss = None
 def fre_loss(output, target):
     global freLoss
     if freLoss is None:
-        freLoss = FreLossPrecomputed(256, 512, 50, 50)
+        freLoss = FreLossPrecomputed(256, 512, 50, 50, k=3)
+        #freLoss = FreLossPrecomputed(512, 1024, 50, 50, k=3)
     return freLoss(output, target)
 
+def fre_loss2(output, target):
+    global freLoss
+    if freLoss is None:
+        freLoss = FreLossPrecomputed(512, 1024, 50, 50, k=3, distance='spherical', s_knn=0.05)
+    return freLoss(output, target)
 
 def knn_point(group_size, point_cloud, query_cloud, transpose_mode=False):
     knn_obj = KNN(k=group_size, transpose_mode=transpose_mode)
@@ -78,16 +84,16 @@ def mse_loss(output, target):
 
 def emd_loss(output, target):
     emd = earth_mover_distance(output, target, transpose=False)
-    emd = torch.sqrt(emd)
-    print(emd.shape)
-    return torch.mean(emd)
+    return torch.mean(emd)# / output.shape[1]
 
 def cd_loss(output, target):
-    out = chamfer_3DFunction.apply(output, target)
-    return out[0].mean() + out[1].mean()
+    loss = chamfer_3DFunction.apply(output, target)
+    loss_for = loss[0]
+    loss_bac = loss[1]
+    return torch.mean(0.4 * loss_for + 0.6 * loss_bac)
 
 
-def hausdorff_loss(self, P, Q):
+def hausdorff_loss(P, Q):
         # P and Q are tensors of shape (batch_size, num_points, point_dim)
         # Compute the pairwise distance between points in P and Q
         P = P.unsqueeze(2)  # shape: (batch_size, num_points, 1, point_dim)
@@ -103,7 +109,8 @@ def hausdorff_loss(self, P, Q):
         hausdorff_P_to_Q = torch.max(min_P_to_Q, dim=1)[0]  # shape: (batch_size)
         hausdorff_Q_to_P = torch.max(min_Q_to_P, dim=1)[0]  # shape: (batch_size)
         
-        hausdorff_distance = torch.max(hausdorff_P_to_Q, hausdorff_Q_to_P)
+        #hausdorff_distance = torch.max(hausdorff_P_to_Q, hausdorff_Q_to_P)
+        hausdorff_distance = hausdorff_P_to_Q + hausdorff_Q_to_P
         
         return torch.mean(hausdorff_distance)
     

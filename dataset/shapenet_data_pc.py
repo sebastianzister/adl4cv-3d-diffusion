@@ -272,7 +272,8 @@ class ShapeNet15kPointCloudsAugmented(ShapeNet15kPointClouds):
         import sys
         sys.path.append('../')
         from pytorch_fre import pytorch_fre_modules as fre
-        freCalc = fre.FreCalc(256, 512, 50, 50)
+        freCalc = fre.FreCalc(256, 512, 50, 50, k=3, distance='euclidean')
+        #freCalc = fre.FreCalc(512, 1024, 50, 50, k=5)
         tmp_time = time.time()
         print("Calculating harmonics for training data")
         self.train_harmonics = torch.tensor(np.zeros((len(self.train_points), 50, 50)))
@@ -303,9 +304,9 @@ class ShapeNet15kPointCloudsAugmented(ShapeNet15kPointClouds):
         y = torch.from_numpy(y[tr_idxs, :]).float()
 
         if self.random_downsample:
-            te_idxs = np.random.choice(y.shape[0], self.te_sample_size//self.down_ratio)
+            te_idxs = np.random.choice(y.shape[0], self.tr_sample_size//self.down_ratio)
         else:
-            te_idxs = np.arange(self.te_sample_size//self.down_ratio)
+            te_idxs = np.arange(self.tr_sample_size//self.down_ratio)
         x = y[te_idxs] 
 
         # add gaussian noise

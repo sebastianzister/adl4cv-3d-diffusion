@@ -210,76 +210,6 @@ class FreCalc(nn.Module):
         else:
             return target_coeffs.real
     
-
-'''
-class FreLoss(nn.Module):
-    def __init__(self, nlat=512, nlon=1024, lmax=50, mmax=50, device='cuda'):
-        super(FreLoss, self).__init__()
-        self.to(device)
-        self.nlat = nlat
-        self.nlon = nlon
-        self.lmax = lmax
-        self.mmax = mmax
-
-        grid_x, grid_y = torch.meshgrid(torch.arange(0, self.nlat), torch.arange(-self.nlat, self.nlat))
-        self.grid = torch.stack([grid_x.ravel(), grid_y.ravel()], axis=-1).unsqueeze(0).to(device)
-        self.grid = self.grid.float() / self.nlat * math.pi
-        
-        self.sht = th.RealSHT(self.nlat, self.nlon, grid='equiangular', lmax=self.lmax, mmax=self.mmax).to(device)
-    
-        self.s2_fre = self.lmax**2
-        self.rect_weights = torch.exp(-((self.lmax - torch.arange(1, self.lmax+1))**2)/(2*self.s2_fre)).to(device)
-        self.rect_weights = self.rect_weights.unsqueeze(0).unsqueeze(2)
-        
-        self.knn_obj = KNN(k=3, transpose_mode=True)
-
-    def forward(self, pred, target):
-        tmp_time = time.time()
-
-        pred_features, pred_sph = to_spherical(pred)
-        target_features, target_sph = to_spherical(target)
-        pred_sph[:, :, 1] -= math.pi
-        target_sph[:, :, 1] -= math.pi
-        
-        tmp_time = time.time()
-        
-        #pred_dist, pred_idx = self.knn_obj(pred_sph, self.grid.expand(pred_sph.shape[0], -1, -1))
-        #target_dist, target_idx = self.knn_obj(target_sph, self.grid.expand(target_sph.shape[0], -1, -1))
-        
-        # OLD VERSION FOR NN
-        pred_dist, pred_idx = fre.three_nn(self.grid.expand(pred_sph.shape[0], -1, -1).contiguous(), pred_sph)
-        target_dist, target_idx = fre.three_nn(self.grid.expand(pred_sph.shape[0], -1, -1).contiguous(), target_sph)
-
-        torch.cuda.synchronize()
-        print('Time for NN: ', time.time() - tmp_time)
-
-        
-        tmp_time = time.time()
-
-        
-        pred_dist = pred_dist/pred_dist.sum(dim=-1, keepdim=True)
-        target_dist = target_dist/target_dist.sum(dim=-1, keepdim=True)
-        
-        pred_interp = fre.three_interpolate(pred_features.contiguous(), pred_idx.int(), pred_dist)
-        target_interp = fre.three_interpolate(target_features.contiguous(), target_idx.int(), target_dist)
-        
-        #plt.imshow(pred_interp[0].detach().cpu().numpy().reshape(self.nlat, self.nlon))
-        #plt.show()
-
-        torch.cuda.synchronize()
-        print('Time for IP: ', time.time() - tmp_time)
-        tmp_time = time.time()
-        
-        pred_coeffs = self.sht.forward(pred_interp.reshape(-1, self.nlat, self.nlon))
-        target_coeffs = self.sht.forward(target_interp.reshape(-1, self.nlat, self.nlon))
-        
-        torch.cuda.synchronize()
-        print('Time for SHT: ', time.time() - tmp_time)
-
-        #return (pred_coeffs.real - target_coeffs.real)**2
-        return torch.sum(((pred_coeffs.real - target_coeffs.real)**2)*self.rect_weights, dim=(1, 2)).mean()
-'''
-
 class FreLossPrecomputed(nn.Module):
     def __init__(self, nlat=512, nlon=1024, lmax=50, mmax=50, k=5, s_knn=None, distance='euclidean', device='cuda'):
         super(FreLossPrecomputed, self).__init__()
@@ -392,66 +322,10 @@ class FreLossPrecomputed(nn.Module):
         
         pred_coeffs = self.sht.forward(pred_interp.reshape(-1, self.nlat, self.nlon))
         
-        #torch.cuda.synchronize()
-        #print('Time for SHT: ', time.time() - tmp_time)
-
-        #return (pred_coeffs.real - target_coeffs.real)**2
-
         dist_coeffs = ((pred_coeffs.real - target_coeffs)**2)
-        if(dist_coeffs.isnan().any()):
-            print("NAN DIST COEFFS")
-            print("PRED", pred_coeffs.real[dist_coeffs.isnan()])
-            print("TARGET", target_coeffs[dist_coeffs.isnan()])
-            print("pred_interp:", pred_interp.isnan().any())
-            print("pred_dist_scaled:", pred_dist_normalized.isnan().any())
 
-            print("pred_dist_weighted:", pred_dist_weighted[pred_dist_normalized.isnan().sum(-1) > 0] == 0)
-            print("pred_dist:", pred_dist[pred_dist_normalized.isnan().sum(-1) > 0])
-            import sys
-            sys.exit()
         dist_coeffs = dist_coeffs*self.rect_weights
         output = torch.sum(dist_coeffs, dim=(1, 2)).mean()
-        #output = torch.sum(((pred_coeffs.real - target_coeffs)**2)*self.rect_weights, dim=(1, 2)).mean() 
 
-        if(pred.requires_grad and False):
-            [grad_dist_pred] = torch.autograd.grad(pred_dist.sum(), [pred_tmp], retain_graph=True)
-            [grad_full, grad_coeff, grad_interp, grad_dist] = torch.autograd.grad(output, [pred, pred_coeffs, pred_interp, pred_dist], retain_graph=True)
-            #print the outputs that result in nan gradients
-            nan_grads = grad_full.isnan()
-            if(nan_grads.sum() < 200 and nan_grads.sum() > 0):
-                for i in range(0, nan_grads.shape[1]):
-                    for batch in range(0, nan_grads.shape[0]):
-                        if nan_grads[batch][i].sum() > 0:
-                            print("BATCH::", batch, "POINT::", i)
-                            print("POINT::", nan_grads[batch][i])
-                            print("PREDPOINT::", pred[batch][i])
-                            print("SPHERICAL::", pred_sph[batch][i])
-                            print("DISTS INVOLVED::", torch.sum(pred_idx[batch] == i))
-                            print("DIST::", torch.sqrt(pred_dist[batch][pred_idx[batch] == i]))
-                            print("DISTKNN::", pred_dist_knn[batch][pred_idx_knn[batch] == i])
-                            print("DISTPYKEOPS::", pred_dist_sane[batch][pred_idx[batch] == i])
-                            
-
-                
-                import sys
-                sys.exit()
-            #print the points in pred that have nan gradients
-#            print("PRED::", pred.shape)
-#            print("GRAD_NAN::", grad_full.isnan().shape)
-#
-#            print("")
-#            print("GRAD::", grad_full.isnan().sum())
-#            print("GRAD COEFF::", grad_coeff.isnan().any())
-#            print("GRAD INTERP::", pred_interp.isnan().any())
-#            print("GRAD DIST::", pred_dist.isnan().any())
-#            print("")
-#            print("GRAD TMP PRED::", grad_dist_pred.isnan().any())
-#            print("")
-#            print("OUTPUT", output.isnan().any())
-#            print("PRED COEFF::", pred_coeffs.isnan().any())
-#            print("PRED INTERP::", pred_interp.isnan().any())
-#            print("PRED DIST::", pred_dist.isnan().any())
-#            print("PRED IDX::", pred_idx.isnan().any())
-#            print("")
         return output
 

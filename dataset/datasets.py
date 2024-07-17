@@ -57,7 +57,6 @@ class PVDDataset(Dataset):
         self.furthest_distance = np.amax(np.sqrt(np.sum((self.data[..., :3] - self.centroid) ** 2, axis=-1)), axis=1, keepdims=True)
         self.radius = self.furthest_distance[:, 0] # not very sure?
 
-#        self.radius = np.ones(shape=(len(self.input)))
         self.data[..., :3] -= self.centroid
         self.data[..., :3] /= np.expand_dims(self.furthest_distance, axis=-1)
     
@@ -66,4 +65,3 @@ class PVDDataset(Dataset):
     
     def __getitem__(self, idx):
         return (self.data[idx], self.centroid[idx], self.furthest_distance[idx])
-        #return self.data[idx]

@@ -152,36 +152,13 @@ class PVCNN2(PVCNN2Base):
         ((128, 3, 8), (512, 0.2, 32, (128, 256))),
         (None, (256, 0.3, 32, (256, 256, 512))),
     ]
-    '''
-    sa_blocks = [
-        ((32, 2, 32), (2048, 0.05, 32, (32, 64))),
-        (None, (1024, 0.1, 32, (64, 128))),
-    ]
-    sa_blocks = [
-        (None, (2048, 0.05, 32, (32, 64))),
-        (None, (1024, 0.1, 32, (64, 128))),
-        (None, (512, 0.2, 32, (128, 256))),
-        (None, (256, 0.3, 32, (256, 256, 512))),
-    ]
-    '''
+
     fp_blocks = [
         ((256, 256), (256, 3, 8)),
         ((256, 256), (256, 3, 8)),
         ((256, 128), (128, 2, 16)),
         ((128, 128, 64), (64, 2, 32)),
     ]
-    '''
-    fp_blocks = [
-        ((256, 256), (256, 3, 8)),
-        ((256, 256), (256, 3, 8)),
-    ]
-    fp_blocks = [
-        ((256, 256), (256, 3, None)),
-        ((256, 256), (256, 3, None)),
-        ((256, 128), (128, 2, None)),
-        ((128, 128, 64), (64, 2, None)),
-    ]
-    '''
 
     def __init__(self, num_classes=3, embed_dim=64, use_att=False,dropout=0.0, extra_feature_channels=0, width_multiplier=1,
                  voxel_resolution_multiplier=1):
@@ -276,8 +253,6 @@ class PUNet(BaseModel):
         xyz = points[..., :3].contiguous()
         feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
 
-        # print(xyz.shape)
-        # print(feats.shape)
 
         # downsample
         l_xyz, l_feats = [xyz], [feats]
@@ -285,21 +260,6 @@ class PUNet(BaseModel):
             lk_xyz, lk_feats = self.SA_modules[k](l_xyz[k], l_feats[k])
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)
-
-            # print(k, 'xyz', lk_xyz.shape)
-            # print(k, 'fea', lk_feats.shape)
-
-        '''
-        0 xyz torch.Size([32, 2048, 3])
-        1 xyz torch.Size([32, 1024, 3])
-        2 xyz torch.Size([32, 512, 3])
-        3 xyz torch.Size([32, 256, 3])
-        
-        0 fea torch.Size([32, 64, 2048])
-        1 fea torch.Size([32, 128, 1024])
-        2 fea torch.Size([32, 256, 512])
-        3 fea torch.Size([32, 512, 256])
-        '''
 
         # upsample
         up_feats = []
@@ -347,8 +307,6 @@ class PVCU(BaseModel):
         self.npoints = [
             npoint, 
             npoint // 2, 
-#            npoint // 4, 
-#            npoint // 8
         ]
 
         mlps = [
@@ -368,8 +326,6 @@ class PVCU(BaseModel):
         sa_blocks = [
             ((32, 1, 128), (2048, 0.05, 32, (32, 32, 64))),
             ((64, 1, 64), (1024, 0.1, 32, (64, 64, 128))),
-#            ((128, 3, 8), (512, 0.2, 32, (128, 128, 256))),
-#            (None, (256, 0.3, 32, (256, 256, 512))),
         ]
         
         sa_layers, sa_in_channels, channels_sa_features, _ = create_pointnet2_sa_components(
@@ -379,31 +335,14 @@ class PVCU(BaseModel):
 
         self.SA_modules = nn.ModuleList(sa_layers)
 
-        '''
-        self.SA_modules = nn.ModuleList()
-        for k in range(len(self.npoints)):
-            self.SA_modules.append(
-                PointnetSAModule(
-                    npoint=self.npoints[k], #2048
-                    radius=radius[k],       #0.05
-                    nsample=nsamples[k],    #32
-                    mlp=[in_ch] + mlps[k],
-                    use_xyz=True,
-                    bn=use_bn))
-            in_ch = mlps[k][-1]
-        '''
 
         # upsamples for layer 2 ~ 4
         fp_blocks = [
             ((64, 64), (64, 1, 128)),
-#            ((64, 64), (64, 1, 16)),
-#            ((64, 64), (64, 1, 16)),
         ]
 
         channels_sa_features = 0
         sa_in_channels = [0, 128] #[0, 512-64, 256-64, 128]
-        # print(channels_sa_features)
-        # print(sa_in_channels)
 
         fp_layers, channels_fp_features = create_pointnet2_fp_modules(
             fp_blocks=fp_blocks, in_channels=channels_sa_features, sa_in_channels=sa_in_channels, with_se=False, 
@@ -411,15 +350,6 @@ class PVCU(BaseModel):
         )
         self.FP_Modules = nn.ModuleList(fp_layers)
 
-        '''
-        self.FP_Modules = nn.ModuleList()
-        for k in range(len(self.npoints) - 1):
-            self.FP_Modules.append(
-                PointnetFPModule(
-                    mlp=[mlps[k + 1][-1], 64], 
-                    bn=use_bn))
-        '''
-        
         # feature Expansion
         in_ch = len(self.npoints) * 64 + 3 # 4 layers + input xyz
         self.FC_Modules = nn.ModuleList()
@@ -443,31 +373,17 @@ class PVCU(BaseModel):
             for k in range(len(self.npoints)):
                 npoints.append(npoint // 2 ** k)
 
-        # points: bs, N, 3/6
-        #xyz = points[..., :3].contiguous()
-        #feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
-
         points = points.permute(0, 2, 1)
         # inputs : [B, in_channels + S, N]
         xyz = points[:, :3, :].contiguous()
         feats = points[:, :, :].contiguous()
         
-        # print(xyz.shape)
-        #print(feats.shape)
         # downsample
         l_xyz, l_feats = [xyz], [feats]
         for k in range(len(self.SA_modules)):
             lk_feats, lk_xyz = self.SA_modules[k]((l_feats[k], l_xyz[k]))
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)
-
-            # print(k, 'xyz  ', lk_xyz.shape)
-            # print(k, 'feats', lk_feats.shape)
-
-        #print(l_xyz[0].shape)
-        #print(l_xyz[1].shape)
-        #print(l_feats[0].shape)
-        #print(l_feats[1].shape)
 
         # upsample
         up_feats = []
@@ -477,26 +393,9 @@ class PVCU(BaseModel):
             centers_coords = l_xyz[k + 2]
             centers_features = l_feats[k + 2] #.permute(1, 0, 2)
 
-            # print("\nFP -----------------------")
-            # print(points_coords.shape)
-            # print("points_features.shape")
-            # print(centers_coords.shape)
-            # print(centers_features.shape)
-            
             # order should be: centers_coords, points_coords, centers_features (according to pvd, but then 1024 points are missing)
             upk_feats, upk_coords = self.FP_Modules[k]((points_coords, centers_coords, centers_features))
-            # print(upk_feats.shape)
-            # print(upk_coords.shape)
-            #pvd concats feats and coords, but we don't need to?
-            #upk_feats1 = torch.cat([upk_feats.permute(1, 0, 2), upk_coords], dim=1)
             up_feats.append(upk_feats) #.permute(1, 0, 2))
-
-        # aggregation
-        # [xyz, l0, l1, l2, l3]
-        # print("\nFC --------------------------")
-        # print(xyz.shape)
-        # print(l_feats[1].shape)
-        # print(up_feats[0].shape)
 
         feats = torch.cat([
             xyz,
@@ -506,7 +405,6 @@ class PVCU(BaseModel):
 
         # expansion
         r_feats = []
-        # print(feats.shape)
         for k in range(len(self.FC_Modules)):
             feat_k = self.FC_Modules[k](feats) # bs, mid_ch, N, 1
             r_feats.append(feat_k)
@@ -527,8 +425,6 @@ class PVCU_Fast(BaseModel):
         self.npoints = [
             npoint, 
             npoint // 2, 
-#            npoint // 4, 
-#            npoint // 8
         ]
 
         mlps = [
@@ -548,8 +444,6 @@ class PVCU_Fast(BaseModel):
         sa_blocks = [
             ((32, 1, 32), (2048, 0.05, 32, (32, 32, 64))),
             ((64, 1, 16), (1024, 0.1, 32, (64, 64, 128))),
-#            ((128, 3, 16), (512, 0.2, 32, (128, 128, 256))),
-#            (None, (256, 0.3, 32, (256, 256, 512))),
         ]
         
         sa_layers, sa_in_channels, channels_sa_features, _ = create_pointnet2_sa_components(
@@ -558,20 +452,6 @@ class PVCU_Fast(BaseModel):
         )
 
         self.SA_modules = nn.ModuleList(sa_layers)
-
-        '''
-        self.SA_modules = nn.ModuleList()
-        for k in range(len(self.npoints)):
-            self.SA_modules.append(
-                PointnetSAModule(
-                    npoint=self.npoints[k], #2048
-                    radius=radius[k],       #0.05
-                    nsample=nsamples[k],    #32
-                    mlp=[in_ch] + mlps[k],
-                    use_xyz=True,
-                    bn=use_bn))
-            in_ch = mlps[k][-1]
-        '''
 
         # upsamples for layer 2 ~ 4
         fp_blocks = [
@@ -582,8 +462,6 @@ class PVCU_Fast(BaseModel):
 
         channels_sa_features = 0
         sa_in_channels = [0, 256-64, 128] #[0, 512-64, 256-64, 128]
-        # print(channels_sa_features)
-        # print(sa_in_channels)
 
         fp_layers, channels_fp_features = create_pointnet2_fp_modules(
             fp_blocks=fp_blocks, in_channels=channels_sa_features, sa_in_channels=sa_in_channels, with_se=False, 
@@ -591,15 +469,6 @@ class PVCU_Fast(BaseModel):
         )
         self.FP_Modules = nn.ModuleList(fp_layers)
 
-        '''
-        self.FP_Modules = nn.ModuleList()
-        for k in range(len(self.npoints) - 1):
-            self.FP_Modules.append(
-                PointnetFPModule(
-                    mlp=[mlps[k + 1][-1], 64], 
-                    bn=use_bn))
-        '''
-        
         # feature Expansion
         in_ch = len(self.npoints) * 64 + 3 # 4 layers + input xyz
         self.FC_Modules = nn.ModuleList()
@@ -623,31 +492,17 @@ class PVCU_Fast(BaseModel):
             for k in range(len(self.npoints)):
                 npoints.append(npoint // 2 ** k)
 
-        # points: bs, N, 3/6
-        #xyz = points[..., :3].contiguous()
-        #feats = points[..., 3:].transpose(1, 2).contiguous() if self.use_normal else None
-
         points = points.permute(0, 2, 1)
         # inputs : [B, in_channels + S, N]
         xyz = points[:, :3, :].contiguous()
         feats = points[:, :, :].contiguous()
-        
-        # print(xyz.shape)
-        #print(feats.shape)
+
         # downsample
         l_xyz, l_feats = [xyz], [feats]
         for k in range(len(self.SA_modules)):
             lk_feats, lk_xyz = self.SA_modules[k]((l_feats[k], l_xyz[k]))
             l_xyz.append(lk_xyz)
             l_feats.append(lk_feats)
-
-            # print(k, 'xyz  ', lk_xyz.shape)
-            # print(k, 'feats', lk_feats.shape)
-
-        #print(l_xyz[0].shape)
-        #print(l_xyz[1].shape)
-        #print(l_feats[0].shape)
-        #print(l_feats[1].shape)
 
         # upsample
         up_feats = []
@@ -656,37 +511,19 @@ class PVCU_Fast(BaseModel):
             points_features = None
             centers_coords = l_xyz[k + 2]
             centers_features = l_feats[k + 2] #.permute(1, 0, 2)
-
-            # print("\nFP -----------------------")
-            # print(points_coords.shape)
-            # print("points_features.shape")
-            # print(centers_coords.shape)
-            # print(centers_features.shape)
             
             # order should be: centers_coords, points_coords, centers_features (according to pvd, but then 1024 points are missing)
             upk_feats, upk_coords = self.FP_Modules[k]((points_coords, centers_coords, centers_features))
-            # print(upk_feats.shape)
-            # print(upk_coords.shape)
-            #pvd concats feats and coords, but we don't need to?
-            #upk_feats1 = torch.cat([upk_feats.permute(1, 0, 2), upk_coords], dim=1)
             up_feats.append(upk_feats) #.permute(1, 0, 2))
-
-        # aggregation
-        # [xyz, l0, l1, l2, l3]
-        # print("\nFC --------------------------")
-        # print(xyz.shape)
-        # print(l_feats[1].shape)
-        # print(up_feats[0].shape)
 
         feats = torch.cat([
             xyz,
-            l_feats[1], #should be l_feats[1] but dimensions are wrong
+            l_feats[1],
             *up_feats
         ], dim=1).unsqueeze(-1)  # bs, mid_ch, N, 1
 
         # expansion
         r_feats = []
-        # print(feats.shape)
         for k in range(len(self.FC_Modules)):
             feat_k = self.FC_Modules[k](feats) # bs, mid_ch, N, 1
             r_feats.append(feat_k)

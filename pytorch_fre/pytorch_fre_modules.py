@@ -244,7 +244,6 @@ class FreLossPrecomputed(nn.Module):
         #self.knn_obj = KNN(k=3, transpose_mode=True)
 
     def forward(self, pred, target_coeffs):
-        torch.autograd.set_detect_anomaly(True)
         #tmp_time = time.time()
         
         if((target_coeffs == 0).all()):

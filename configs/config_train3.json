@@ -1,0 +1,62 @@
+{
+    "name": "PUNet_Baseline_PUEMD_explr",
+    "n_gpu": 1,
+
+    "arch": {
+        "type": "PUNet",
+        "args": {
+            "use_bn": true,
+            "npoint": 2048,
+            "up_ratio": 2 
+        }
+    },
+    "data_loader": {
+        "type": "ShapeNetAugmentedDataLoader",
+        "args":{
+            "data_dir": "data/",
+            "batch_size": 24,
+            "shuffle": true,
+            "validation_split": 0.2,
+            "num_workers": 4,
+            "pin_memory": false,
+            "tr_sample_size": 4096,
+            "down_ratio": 2,
+            "random_downsample": false
+        }
+    },
+    "optimizer": {
+        "type": "Adam",
+        "args":{
+            "lr": 0.001,
+            "weight_decay": 0.0005,
+            "amsgrad": true
+        }
+    },
+    "loss": ["pu_emd_loss", "repulsion_loss"],
+    "loss_weight": [100.0, 1.0],
+    "metrics": [
+    ],
+    "lr_scheduler": {
+        "type": "ExponentialLR",
+        "pass_optimizer": true,
+        "args": {
+            "gamma": 0.99654026282787
+        }
+    },
+    "trainer": {
+        "epochs": 1,
+
+        "save_dir": "saved/",
+        "save_period": 400,
+        "verbosity": 2,
+        
+        "monitor": "min val_loss",
+        "early_stop": 10,
+        "do_validation": false,
+        "val_per_epochs" : 5,
+        "visualize_per_epochs" : 50,    
+        "visualize_train_batch" : 50,
+
+        "tensorboard": true
+    }
+}

@@ -4,6 +4,16 @@ import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 
+def normalize_pc_pair(input, gt):
+    data_radius = np.ones(shape=(len(input)))
+    centroid = np.mean(gt[:,0:3], axis=0, keepdims=True)
+    gt[:,0:3] = gt[:,0:3] - centroid
+    furthest_distance = np.amax(np.sqrt(np.sum(gt[:,0:3] ** 2, axis=-1)),axis=0,keepdims=True)
+    gt[ :, 0:3] = gt[:,0:3] / np.expand_dims(furthest_distance,axis=-1)
+    input[ :, 0:3] = input[ :, 0:3] - centroid
+    input[ :, 0:3] = input[ :, 0:3] / np.expand_dims(furthest_distance,axis=-1)
+    
+    return input, gt
 
 class PointDetailDataset(Dataset):
     def __init__(self, root_dir, train=True , transform=None):
@@ -23,13 +33,35 @@ class PointDetailDataset(Dataset):
 
         file = self.files[idx]
         data = np.load(os.path.join(self.root_dir, file))
-        x = data[0]
-        y = data[1]
+        y = data[0]# + 1
+        # add noise to x
+        # set seed for reproducibility
+        np.random.seed(0)
+        noise = np.random.normal(0, 0.01, y.shape).astype(np.float32)
+        x = y + noise
+        #y = data[1]
+        
+        x, y = normalize_pc_pair(x, y)
 
         if self.transform:
             data = self.transform(data)
 
-        print(data.shape)
-        print(y.shape)
-        print(x.shape)
         return (x, y)
+
+class PVDDataset(Dataset):
+    def __init__(self, root_dir="data", train=True , transform=None, categories=["car"]):
+        self.data = torch.load(os.path.join(root_dir, f'samples_{categories[0]}.pth')).numpy()
+        
+        # normalize to unit sphere
+        self.centroid = np.mean(self.data[..., :3], axis=1, keepdims=True)
+        self.furthest_distance = np.amax(np.sqrt(np.sum((self.data[..., :3] - self.centroid) ** 2, axis=-1)), axis=1, keepdims=True)
+        self.radius = self.furthest_distance[:, 0] # not very sure?
+
+        self.data[..., :3] -= self.centroid
+        self.data[..., :3] /= np.expand_dims(self.furthest_distance, axis=-1)
+    
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        return (self.data[idx], self.centroid[idx], self.furthest_distance[idx])

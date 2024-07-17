@@ -1,0 +1,65 @@
+{
+    "name": "PUNet_UP4",
+    "n_gpu": 1,
+    "arch": {
+        "type": "PUNet",
+        "args": {
+            "use_bn": true,
+            "npoint": 2048,
+            "up_ratio": 4
+        }
+    },
+    "data_loader": {
+        "type": "ShapeNetAugmentedDataLoader",
+        "args": {
+            "data_dir": "data/",
+            "batch_size": 32,
+            "shuffle": true,
+            "validation_split": 0.2,
+            "num_workers": 0,
+            "pin_memory": false,
+            "tr_sample_size": 8192,
+            "down_ratio": 4
+        }
+    },
+    "optimizer": {
+        "type": "Adam",
+        "args": {
+            "lr": 0.0001,
+            "weight_decay": 0,
+            "amsgrad": true
+        }
+    },
+    "loss": [
+        "cd_loss",
+        "repulsion_loss",
+        "emd_loss"
+    ],
+    "loss_weight": [
+        1000.0,
+        1.0,
+        100.0
+    ],
+    "metrics": [],
+    "lr_scheduler": {
+        "pass_optimizer": false,
+        "type": "StepLR",
+        "args": {
+            "step_size": 600,
+            "gamma": 0.1
+        }
+    },
+    "trainer": {
+        "epochs": 600,
+        "save_dir": "saved/",
+        "save_period": 50,
+        "verbosity": 2,
+        "monitor": "min val_loss",
+        "early_stop": 0,
+        "do_validation": false,
+        "val_per_epochs": 5,
+        "visualize_per_epochs": 50,
+        "visualize_train_batch": 50,
+        "tensorboard": true
+    }
+}
